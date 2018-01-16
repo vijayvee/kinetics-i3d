@@ -63,10 +63,12 @@ def predict_single_video(video_fn, n_frames):
         #TODO: Implement other input modes
         return CLASSES_KIN[top_class], predictions
 
+
 def main():
-    video_fn = '/media/data_cifs/cluster_projects/action_recognition/ActivityNet/Crawler/Kinetics/train/clapping/BlM2TyjUcsM_000000_000010.mp4'
+    video_fn = '/media/data_cifs/cluster_projects/action_recognition/ActivityNet/Crawler/Kinetics/val/fixing hair/TkMVNYg1Nyc_000107_000117.mp4'
     n_frames = 79
     top_class,preds = predict_single_video(video_fn,n_frames)
     print top_class
+
 if __name__=="__main__":
     main()
