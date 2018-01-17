@@ -19,6 +19,48 @@ _LABEL_MAP_PATH = 'data/label_map.txt'
 CLASSES_KIN = [x.strip() for x in open(_LABEL_MAP_PATH)]
 video2label = {}
 
+def load_video_with_path_cv2(video_path, n_frames):
+    """ Fuction to read a video, select a certain select number of frames, normalize and return the array of videos
+    :param video_path: Path to the video that has to be loaded
+    :param n_frames: Number of frames used to represent a video"""
+    cap = cv2.VideoCapture(video_path)
+    if cap.isOpened()==False:
+        return -1,-1
+    video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    ind_frames = map(int,np.linspace(0,video_length-1,n_frames))
+    frameCount, index = 0,0
+    vid = []
+    while(cap.isOpened()):
+        ret, frame = cap.read()
+        if ret:
+            frameCount += 1
+            frame = cv2.resize(frame,(224,224))
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = frame.astype(np.float32)
+            vid.append(frame)
+        else:
+            break
+    curr_frames = [vid[i] for i in ind_frames]
+    curr_frames = np.array(curr_frames)
+    #norm_frames = (curr_frames/127.5) - 1.
+    return curr_frames,curr_frames.shape
+
+
+def load_video_with_path(video_path, n_frames):
+    """ Fuction to read a video, select a certain select number of frames, normalize and return the array of videos
+    :param video_path: Path to the video that has to be loaded
+    :param n_frames: Number of frames used to represent a video"""
+    #imageio gives problems, seems unstable to read videos
+
+    vid = imageio.get_reader(video_path,'ffmpeg')
+    ind_frames = map(int,np.linspace(0,vid.get_length()-1,n_frames))
+    curr_frames = [vid.get_data(i) for i in ind_frames]
+    import ipdb; ipdb.set_trace()
+    resized_frames = [cv2.resize(i,(224,224)) for i in curr_frames]
+    curr_frames = np.array(resized_frames)
+    #norm_frames = (curr_frames/127.5) - 1.
+    return norm_frames,norm_frames.shape
+
 def read_video(video_id,label,n_frames,subset):
     """Function to read a single video given by video_fn and return n_frames equally spaced frames from the video
         video_fn: Filename of the video to read
