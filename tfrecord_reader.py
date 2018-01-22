@@ -21,7 +21,7 @@ def get_video_label_tfrecords(filename_queue,batch_size):
    video = tf.reshape(video_dec, [79, 224, 224, 3])
    print video.get_shape().as_list()
    # Creates batches by randomly shuffling tensors
-   videos, labels = tf.train.shuffle_batch([video, label], batch_size=batch_size, capacity=30, num_threads=10, min_after_dequeue=10)
+   videos, labels = tf.train.shuffle_batch([video, label], batch_size=batch_size, capacity=30, num_threads=100, min_after_dequeue=10)
    return videos, labels
 
 def test_tfrecord_read(tfrecords_filename):
@@ -29,6 +29,8 @@ def test_tfrecord_read(tfrecords_filename):
     videos,labels = get_video_label_tfrecords(filename_queue,3)
     init_op = tf.group(tf.global_variables_initializer(),
     tf.local_variables_initializer())
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
+    import ipdb; ipdb.set_trace()
     with tf.Session() as sess:
         sess.run(init_op)
         coord = tf.train.Coordinator()
