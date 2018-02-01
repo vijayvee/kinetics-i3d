@@ -51,7 +51,7 @@ def predict_single_video(video_fn, n_frames):
     """Function to predict actions for the video given by video_fn
         video_fn: Filename of the video to predict for
         n_frames: Number of frames to use to represent the video"""
-    video_frames_rgb, _shape = read_video(video_fn, n_frames)
+    video_frames_rgb, _shape = load_video_with_path_cv2(video_fn, n_frames)
     video_frames_rgb = np.expand_dims(video_frames_rgb,0)
     preds, input_video_ph, saver = get_preds_tensor(n_frames=n_frames)
     input_mode = 'rgb'

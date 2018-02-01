@@ -9,6 +9,7 @@ from video_utils import *
 from tqdm import tqdm
 import os
 import sys
+from tfrecord_reader import get_video_label_tfrecords
 
 _IMAGE_SIZE = 224
 _NUM_CLASSES = 400
@@ -61,26 +62,37 @@ def evaluate_model(n_val_samples,video2label,input_mode='rgb',n_frames=79,batch_
         #TODO: Implement precision, recall, conf matrix, F1-score
 
     n_tp,n_fn,n_fp = 0,0,0
+
     correct_preds = 0
     top_classes,predictions,input_video_ph,saver = get_preds_tensor(input_mode,n_frames,batch_size)
-    val_ind = 0
-    with tf.Session() as sess:
+    with tf.Session().as_default() as sess:
+        tfrecords_filename = '../data/val_2.tfrecords'
+        filename_queue = tf.train.string_input_producer([tfrecords_filename], num_epochs=None)
+        videos,labels = get_video_label_tfrecords(filename_queue,10)
+        init_op = tf.group(tf.global_variables_initializer(),
+        tf.local_variables_initializer())
+        sess.run(init_op)
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(coord=coord,sess=sess)
         if input_mode=='rgb':
             n_iters = n_val_samples/batch_size
-            for i in tqdm(range(0,n_iters,batch_size),desc='Evaluating Kinetics on val set...'):
+            for i in tqdm(range(0,n_iters),desc='Evaluating Kinetics on val set...'):
                 saver.restore(sess, _CHECKPOINT_PATHS['rgb'])
-                video_frames_rgb, gt_actions = get_video_batch(video2label,batch_size=batch_size,validation=True,val_ind = i)
+                video_frames_rgb, gt_actions = sess.run([videos,labels])
                 top_class_batch = sess.run([top_classes], feed_dict = {input_video_ph: video_frames_rgb})
+                print_preds_labels(top_class_batch[0],gt_actions)
                 correct_preds += list(top_class_batch[0]==gt_actions).count(True)
-    classification_accuracy = correct_preds/n_val_samples
+                print list(top_class_batch[0]==gt_actions).count(True), "correct predictions"
+    classification_accuracy = round(float(correct_preds)*100/n_val_samples,3)
     return classification_accuracy
 
 def main():
     os.environ["CUDA_VISIBLE_DEVICES"] = sys.argv[1]
     print "Working on GPU %s"%(os.environ["CUDA_VISIBLE_DEVICES"])
-    n_val_samples = 1000
     video2label = get_video2label('val')
-    acc = evaluate_model(1000,video2label)
+    n_val_samples = len(video2label)
+    print "Evaluating on {} samples..".format(n_val_samples)
+    acc = evaluate_model(n_val_samples,video2label)
     print '{}% accuracy on {} samples of val set'.format(acc, n_val_samples)
 
 if __name__=="__main__":

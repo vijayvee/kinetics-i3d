@@ -23,7 +23,6 @@ def load_video_with_path_cv2(video_path, n_frames):
     """ Fuction to read a video, select a certain select number of frames, normalize and return the array of videos
     :param video_path: Path to the video that has to be loaded
     :param n_frames: Number of frames used to represent a video"""
-
     cap = cv2.VideoCapture(video_path)
     if cap.isOpened()==False:
         return -1,-1
@@ -43,9 +42,16 @@ def load_video_with_path_cv2(video_path, n_frames):
             break
     curr_frames = [vid[i] for i in ind_frames]
     curr_frames = np.array(curr_frames)
-    #norm_frames = (curr_frames/127.5) - 1.
-    return curr_frames,curr_frames.shape
+    norm_frames = (curr_frames/127.5) - 1.
+    return norm_frames,norm_frames.shape
 
+def print_preds_labels(preds,labels):
+    """Function to print activity predictions and ground truth next to each other in words.
+    :param preds: List of behavior predictions for a mini batch
+    :param labels: List of behavior ground truth for the same mini batch"""
+    for i,(prediction,ground_truth) in enumerate(zip(preds,labels)):
+        print i,"Prediction: ",CLASSES_KIN[prediction],"Label: ",CLASSES_KIN[ground_truth]
+    print list(preds==labels).count(True), "correct predictions"
 
 def load_video_with_path(video_path, n_frames):
     """ Fuction to read a video, select a certain select number of frames, normalize and return the array of videos
@@ -101,6 +107,7 @@ def get_video_batch(video2label,batch_size=BATCH_SIZE,validation=False,val_ind=0
         #Implement videos that are missing.
         curr_video_paths = [glob.glob("%s/%s/%s*mp4"%(VIDEOS_ROOT,label,video_id))[0] for video_id,label in zip(curr_videos,curr_labels)]
         video_rgb_frames = [load_video_with_path_cv2(curr_vid,n_frames)[0] for curr_vid in curr_video_paths]
+        #video_rgb_frames = [read_video(video_id,label,n_frames,'val')[0] for video_id, label in zip(curr_videos,curr_labels)]
         if class_index:
             curr_labels = [CLASSES_KIN.index(action) for action in curr_labels]
         return np.array(video_rgb_frames),np.array(curr_labels)
