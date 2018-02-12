@@ -17,6 +17,7 @@ subset = 'train'
 VIDEOS_ROOT = KINETICS_ROOT + '/' + subset
 _LABEL_MAP_PATH = 'data/label_map.txt'
 CLASSES_KIN = [x.strip() for x in open(_LABEL_MAP_PATH)]
+CLASSES_MICE = ["drink", "eat", "groom", "hang", "sniff", "rear", "rest", "walk", "eathand"]
 video2label = {}
 
 def load_video_with_path_cv2(video_path, n_frames):
@@ -78,7 +79,7 @@ def print_preds_labels(preds,labels):
     :param preds: List of behavior predictions for a mini batch
     :param labels: List of behavior ground truth for the same mini batch"""
     for i,(prediction,ground_truth) in enumerate(zip(preds,labels)):
-        print i,"Prediction: ",CLASSES_KIN[prediction],"Label: ",CLASSES_KIN[ground_truth]
+        print i,"Prediction: ",CLASSES_MICE[prediction],"Label: ",CLASSES_MICE[ground_truth]
     print list(preds==labels).count(True), "correct predictions"
 
 def load_video_with_path(video_path, n_frames):

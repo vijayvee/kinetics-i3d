@@ -11,6 +11,7 @@ import os
 import sys
 from tfrecord_reader import get_video_label_tfrecords
 from test_batch_videos import evaluate_model
+from time import gmtime, strftime
 
 _IMAGE_SIZE = 224
 _NUM_CLASSES = 9
@@ -22,6 +23,7 @@ _SAMPLE_PATHS = {
 }
 
 _CHECKPOINT_PATHS = {
+    'mice': 'ckpt_dir/Mice_ACBM_I3D_0.0001_adam_10_19000.ckpt',
     'rgb': 'data/checkpoints/rgb_scratch/model.ckpt',
     'flow': 'data/checkpoints/flow_scratch/model.ckpt',
     'rgb_imagenet': 'data/checkpoints/rgb_imagenet/model.ckpt',
@@ -30,6 +32,7 @@ _CHECKPOINT_PATHS = {
 
 _LABEL_MAP_PATH = 'data/label_map.txt'
 CLASSES_KIN = [x.strip() for x in open(_LABEL_MAP_PATH)]
+CLASSES_MICE = ["drink", "eat", "groom", "hang", "sniff", "rear", "rest", "walk", "eathand"]
 
 def get_loss(predictions, ground_truth):
     """Function to get the loss tensor for I3d
@@ -57,7 +60,6 @@ def get_preds_loss(ground_truth, input_mode='rgb',n_frames=16, num_classes=_NUM_
         rgb_saver = tf.train.Saver(var_list = rgb_variable_map, reshape=True)
         model_predictions = tf.nn.softmax(rgb_logits)
         top_classes = tf.argmax(model_predictions,axis=1)
-        import ipdb; ipdb.set_trace()
         loss = get_loss(model_predictions, ground_truth)
         return model_predictions, loss, top_classes, input_fr_rgb, rgb_saver
     else:
@@ -129,8 +131,8 @@ def train_batch_videos(n_train_samples, n_epochs, video2label, input_mode='rgb',
                                                                         input_mode=input_mode,
                                                                         n_frames=n_frames,
                                                                         batch_size=batch_size)
+    saver_mice = tf.train.Saver()
     step = get_optimizer(loss,optim_key='adam',learning_rate=learning_rate)
-    saver_training = tf.train.Saver()
     best_val_accuracy = -1.
     val_accuracy_iter = n_train_samples/batch_size
     with tf.Session().as_default() as sess:
@@ -140,11 +142,15 @@ def train_batch_videos(n_train_samples, n_epochs, video2label, input_mode='rgb',
         init_op = tf.group(tf.global_variables_initializer(),
         tf.local_variables_initializer())
         sess.run(init_op)
+        print "Weights before restore: {}".format(np.mean(sess.run(tf.all_variables()[12])))
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord,sess=sess)
         if input_mode=='rgb':
             n_iters = (n_epochs*n_train_samples)/batch_size
             saver.restore(sess, _CHECKPOINT_PATHS['rgb'])
+            print "Weights after restore: {}".format(np.mean(sess.run(tf.all_variables()[12])))
+	 #   saver_ = tf.train.import_meta_graph(_CHECKPOINT_PATHS['mice'] + '.meta')
+         #   saver_.restore(sess, _CHECKPOINT_PATHS['mice']) 
             for i in tqdm(range(0,n_iters),desc='Training I3D on Kinetics train set...'):
                 video_frames_rgb, gt_actions = sess.run([videos,labels])
                 gt_actions_oh = np.eye(num_classes)[gt_actions]
@@ -157,7 +163,8 @@ def train_batch_videos(n_train_samples, n_epochs, video2label, input_mode='rgb',
                 if i%action_every==0:
                     print_preds_labels(top_class_batch, gt_actions)
                 if i%save_every==0:
-                    saver.save(sess,'./ckpt_dir/Mice_ACBM_I3D_%s_%s_%s_%s.ckpt'%(learning_rate,optim_key,n_epochs,str(i)))
+		    curr_time = strftime("%Y_%m_%d_%H_%M_%S", gmtime())
+                    saver_mice.save(sess,'./ckpt_dir/Mice_ACBM_I3D_%s_%s_%s_%s_%s.ckpt'%(learning_rate,optim_key,n_epochs,str(i),curr_time))
                 #if i%val_accuracy_iter==0 and i!=0:
                 #    val_accuracy = validation_accuracy(n_val_samples=n_val_samples,
                 #                                video2label=video2label,sess=sess,input_video_ph=input_video_ph,
@@ -171,6 +178,7 @@ def train_batch_videos(n_train_samples, n_epochs, video2label, input_mode='rgb',
                 #        if reset==early_stopping:
                 #            break
                 #        reset +=1
+    #TODO: Try with mice val set
     print "Training completed with best accuracy: {}".format(best_val_accuracy)
     return best_val_accuracy
 
