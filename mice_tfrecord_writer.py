@@ -61,6 +61,7 @@ def write_tfrecords(data_path,video_paths,action_labels,
     writer = tf.python_io.TFRecordWriter(data_path)
     video_count = 0
     for i in tqdm(range(len(video_paths)),desc='Writing tf records..'):
+        print '#'*80,'\n'
         video_name = video_paths[i].split('/')[-1]
         # print how many videos are saved every 1000 videos
         if (i!=0 and (not i % n_vids_per_batch)):
@@ -71,15 +72,19 @@ def write_tfrecords(data_path,video_paths,action_labels,
             if behav.lower() != 'none':
                 counts[behav] += count
         for ii in range(0,len(label),n_frames_chunk):
-            video,(n,h,w,c) = load_video_with_path_cv2_abs(data_root + '/' + video_paths[i],starting_frame=ii,n_frames=n_frames_chunk)
+            j_range_max = min(len(label)-ii,n_frames_chunk) #load only as many frames for which labels are available
+            video,(n,h,w,c) = load_video_with_path_cv2_abs(data_root + '/' + video_paths[i],starting_frame=ii,n_frames=j_range_max)
             if type(video)==int:
                 #Video does not exist, load video returned -1
-                print "No video {} exists {}".format(video_paths[i],video)
+                print "No video {} exists {}".format(data_root + '/' + video_paths[i],video)
                 continue
-            j_range_max = min(n,n_frames_chunk)
-            for j in tqdm(range(0,j_range_max-n_frames_batch),desc='Writing frames for chunk {} of video {}'.format(ii/n_frames_chunk,video_name)):
+            #Incorporate shuffling within chunk
+            curr_range = range(0,j_range_max-n_frames_batch)
+            shuffle(curr_range)
+            for jj in tqdm(range(len(curr_range)),desc='Writing frames for chunk {} of video {}'.format(ii/n_frames_chunk,video_name)):
+                j = curr_range[jj] #Shuffled index j in current chunk
                 vid = video[j:n_frames_batch+j]
-                label_action = label[n_frames_batch+j-1]
+                label_action = label[ii+n_frames_batch+j-1] #Add ii to account for starting frame number
                 if label_action.lower() == 'none': #Do not train with 'none' labels that are present in the training h5 files
                     continue
                 label_int = L_POSSIBLE_BEHAVIORS.index(label_action)
@@ -100,9 +105,9 @@ def write_tfrecords(data_path,video_paths,action_labels,
 
 def main():
     subset = sys.argv[1]
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[2]
     videos, labels = get_lists(subset)
-    write_tfrecords('data/%s_mixed_mice.tfrecords'%(subset),videos, labels, 1, subset)
+    write_tfrecords('data/%s_shuffled_mixed_mice.tfrecords'%(subset),videos, labels, 1, subset)
 
 if __name__=="__main__":
     main()
