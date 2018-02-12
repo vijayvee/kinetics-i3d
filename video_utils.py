@@ -4,7 +4,9 @@ import numpy as np
 import cv2
 from random import sample
 import pandas as pd
+import matplotlib.pyplot as plt
 import glob
+from time import sleep
 
 """Script for video related utilities"""
 
@@ -46,13 +48,34 @@ def load_video_with_path_cv2(video_path, n_frames):
     norm_frames = (curr_frames/127.5) - 1.
     return norm_frames,norm_frames.shape
 
+def invert_preprocessing(norm_frames, labels = [], display=False):
+    """ Function to invert the preprocessing performed before writing tfrecords.
+    :param norm_frames: Array of frames that are in normalized form"""
+    curr_frames = (norm_frames + 1.) * 127.5
+    print curr_frames.shape
+    if display:
+        for i in range(len(curr_frames)):
+            curr_vid = curr_frames[i,:,:,:,:]
+            im = curr_vid[0,:,:,:]
+            print im.shape
+            show = plt.imshow(im)
+            if len(labels)>0:
+                print CLASSES_MICE[labels[i]]
+            for ii in range(len(curr_vid)):
+                im = curr_vid[ii,:,:,:]
+                show.set_data(im)
+                plt.pause(1./30)
+            plt.pause(1)
+        plt.show()
+    return curr_frames
+
 def load_video_with_path_cv2_abs(video_path, starting_frame, n_frames):
     """ Fuction to read a video, convert all read frames into an array, normalize and return the array of videos
     :param video_path: Path to the video that has to be loaded
     :param n_frames: Number of frames used to represent a video"""
     cap = cv2.VideoCapture(video_path)
     if cap.isOpened()==False:
-        return -1,-1
+        return -1,(-1,-1,-1,-1)
     video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     cap.set(1,starting_frame)
     frameCount, index = 0,0

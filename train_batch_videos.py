@@ -9,6 +9,7 @@ from video_utils import *
 from tqdm import tqdm
 import os
 import sys
+import random
 from tfrecord_reader import get_video_label_tfrecords
 from test_batch_videos import evaluate_model
 from time import gmtime, strftime
@@ -150,7 +151,7 @@ def train_batch_videos(n_train_samples, n_epochs, video2label, input_mode='rgb',
             saver.restore(sess, _CHECKPOINT_PATHS['rgb'])
             print "Weights after restore: {}".format(np.mean(sess.run(tf.all_variables()[12])))
 	 #   saver_ = tf.train.import_meta_graph(_CHECKPOINT_PATHS['mice'] + '.meta')
-         #   saver_.restore(sess, _CHECKPOINT_PATHS['mice']) 
+         #   saver_.restore(sess, _CHECKPOINT_PATHS['mice'])
             for i in tqdm(range(0,n_iters),desc='Training I3D on Kinetics train set...'):
                 video_frames_rgb, gt_actions = sess.run([videos,labels])
                 gt_actions_oh = np.eye(num_classes)[gt_actions]
