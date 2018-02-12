@@ -45,6 +45,34 @@ def load_video_with_path_cv2(video_path, n_frames):
     norm_frames = (curr_frames/127.5) - 1.
     return norm_frames,norm_frames.shape
 
+def load_video_with_path_cv2_abs(video_path, starting_frame, n_frames):
+    """ Fuction to read a video, convert all read frames into an array, normalize and return the array of videos
+    :param video_path: Path to the video that has to be loaded
+    :param n_frames: Number of frames used to represent a video"""
+    cap = cv2.VideoCapture(video_path)
+    if cap.isOpened()==False:
+        return -1,-1
+    video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    cap.set(1,starting_frame)
+    frameCount, index = 0,0
+    vid = []
+    while(cap.isOpened()):
+        ret, frame = cap.read()
+        if ret:
+            frameCount += 1
+            frame = cv2.resize(frame,(224,224))
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = frame.astype(np.float32)
+            vid.append(frame)
+            if frameCount == n_frames:
+                break
+        else:
+            break
+    curr_frames = np.array(vid)
+    norm_frames = (curr_frames/127.5) - 1.
+    return norm_frames,norm_frames.shape
+
+
 def print_preds_labels(preds,labels):
     """Function to print activity predictions and ground truth next to each other in words.
     :param preds: List of behavior predictions for a mini batch
@@ -93,6 +121,57 @@ def get_video2label(subset):
     video_ids, labels = df.youtube_id, df.label
     video2label = {v:l for v,l in zip(video_ids,labels)}
     return video2label
+
+def get_class_weights(LABELS_ROOT):
+    import h5py
+    import glob
+    all_labels = glob.glob(LABELS_ROOT + '/*h5')
+    for label in all_labels:
+        f = h5py.File(label)
+        labels = f['labels'].value
+        label, count = np.unique(labels, return_counts=True)
+
+
+def download_clip(video_identifier, output_dir,
+                  start_time, end_time,
+                  tmp_dir='/tmp/kinetics',
+                  num_attempts=5,):
+    """Trim video and store chunks.
+
+    arguments:
+    ---------
+    video_identifier: str
+        Path to the video stored on disk
+    output_dir: str
+        File path where the video will be stored.
+    start_time: float
+        Indicates the begining time in seconds from where the video
+        will be trimmed.
+    end_time: float
+        Indicates the ending time in seconds of the trimmed video.
+    """
+    # Construct command to trim the videos (ffmpeg required).
+    for i in range(0,3600):
+        output_filename = output_dir + '/' + video_identifier + '_' + str(i) + '_' + str(i+1) + '.mp4'
+        command = ['ffmpeg',
+                   '-i', '"%s"' % tmp_filename,
+                   '-ss', str(i),
+                   '-t', '1',
+                   '-c:v', 'libx264', '-c:a', 'copy',
+                   '-threads', '1',
+                   '-loglevel', 'panic',
+                   '"%s"' % output_filename]
+        command = ' '.join(command)
+        try:
+            output = subprocess.check_output(command, shell=True,
+                                             stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as err:
+            return status, err.output
+
+        # Check if the video was successfully saved.
+        status = os.path.exists(output_filename)
+        os.remove(tmp_filename)
+    return status, 'Downloaded'
 
 def get_video_batch(video2label,batch_size=BATCH_SIZE,validation=False,val_ind=0,n_frames=N_FRAMES,class_index=True):
     """Function to return a random batch of videos for train mode and a specific set of videos for val mode.

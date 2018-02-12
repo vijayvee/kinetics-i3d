@@ -1,0 +1,108 @@
+#!/usr/bin/python
+
+"""Script to write tfrecords for mixed-mice-data
+Separate script since chunks of video are not stored in different files and filenames"""
+
+from random import shuffle
+import pickle
+import h5py
+import glob
+import cv2
+import tensorflow as tf
+import numpy as np
+import sys
+import os
+from tqdm import tqdm
+import imageio
+from video_utils import *
+L_POSSIBLE_BEHAVIORS = ["drink",
+                        "eat",
+                        "groom",
+                        "hang",
+                        "sniff",
+                        "rear",
+                        "rest",
+                        "walk",
+                        "eathand"]
+
+data_root = '/media/data_cifs/mice/mice_data_2018'
+video_root = '{}/videos'.format(data_root)
+label_root = '{}/labels'.format(data_root)
+
+def get_lists(subset):
+    labels = '{}/{}_labels_mixed_mice.pkl'.format(data_root,subset)
+    videos = '{}/{}_videos_mixed_mice.pkl'.format(data_root,subset)
+    subset_labels = pickle.load(open(labels))
+    subset_videos = pickle.load(open(videos))
+    return subset_videos, subset_labels
+
+def _int64_feature(value):
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+def _bytes_feature(value):
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+def load_label(label_path):
+    f = h5py.File(data_root + '/' + label_path)
+    labels = f['labels'].value
+    behav, labels_count = np.unique(labels, return_counts=True)
+    counts = {k:v for k,v in zip(behav,labels_count)}
+    return list(labels), counts
+
+def write_tfrecords(data_path,video_paths,action_labels,
+                    n_vids_per_batch,subset,
+                    n_frames_batch = 16,
+                    n_frames_chunk = 4800):
+    """Function to write tfrecords.
+        :param data_path: name of tfrecords file to write
+        :param video_paths: list containing filenames of videos
+        :param action_labels: list conatining filenames of ground truth label h5 files"""
+    counts = {behav:0 for behav in L_POSSIBLE_BEHAVIORS}
+    writer = tf.python_io.TFRecordWriter(data_path)
+    video_count = 0
+    for i in tqdm(range(len(video_paths)),desc='Writing tf records..'):
+        video_name = video_paths[i].split('/')[-1]
+        # print how many videos are saved every 1000 videos
+        if (i!=0 and (not i % n_vids_per_batch)):
+            print 'Train data: {}/{}\nVideo type:{}'.format(i, len(video_paths),type(vid))
+        # Load the video
+        label, counts_curr = load_label(action_labels[i])
+        for behav,count in counts_curr.iteritems():
+            if behav.lower() != 'none':
+                counts[behav] += count
+        for ii in range(0,len(label),n_frames_chunk):
+            video,(n,h,w,c) = load_video_with_path_cv2_abs(data_root + '/' + video_paths[i],starting_frame=ii,n_frames=n_frames_chunk)
+            if type(video)==int:
+                #Video does not exist, load video returned -1
+                print "No video {} exists {}".format(video_paths[i],video)
+                continue
+            j_range_max = min(n,n_frames_chunk)
+            for j in tqdm(range(0,j_range_max-n_frames_batch),desc='Writing frames for chunk {} of video {}'.format(ii/n_frames_chunk,video_name)):
+                vid = video[j:n_frames_batch+j]
+                label_action = label[n_frames_batch+j-1]
+                if label_action.lower() == 'none': #Do not train with 'none' labels that are present in the training h5 files
+                    continue
+                label_int = L_POSSIBLE_BEHAVIORS.index(label_action)
+                # Create a feature
+                feature = {'%s/label'%(subset): _int64_feature(label_int)}
+                feature['%s/video'%(subset)] = _bytes_feature(tf.compat.as_bytes(vid.tostring()))
+                # Create an example protocol buffer
+                example = tf.train.Example(features=tf.train.Features(feature=feature))
+                # Serialize to string and write on the file
+                if example is not None:
+                    writer.write(example.SerializeToString())
+                    video_count += 1
+                else:
+        	    print "Example is None"
+    writer.close()
+    sys.stdout.flush()
+    return video_count
+
+def main():
+    subset = sys.argv[1]
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    videos, labels = get_lists(subset)
+    write_tfrecords('data/%s_mixed_mice.tfrecords'%(subset),videos, labels, 1, subset)
+
+if __name__=="__main__":
+    main()

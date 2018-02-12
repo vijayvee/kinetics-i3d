@@ -13,9 +13,9 @@ from tfrecord_reader import get_video_label_tfrecords
 from test_batch_videos import evaluate_model
 
 _IMAGE_SIZE = 224
-_NUM_CLASSES = 400
+_NUM_CLASSES = 9
 
-_SAMPLE_VIDEO_FRAMES = 79
+_SAMPLE_VIDEO_FRAMES = 16
 _SAMPLE_PATHS = {
     'rgb': 'data/v_CricketShot_g04_c01_rgb.npy',
     'flow': 'data/v_CricketShot_g04_c01_flow.npy',
@@ -37,7 +37,7 @@ def get_loss(predictions, ground_truth):
         :param ground_truth: Tensor with the ground truth for predictions"""
     return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=predictions, labels=ground_truth))
 
-def get_preds_loss(ground_truth, input_mode='rgb',n_frames=79, num_classes=_NUM_CLASSES, batch_size=10, dropout_keep_prob=0.6):
+def get_preds_loss(ground_truth, input_mode='rgb',n_frames=16, num_classes=_NUM_CLASSES, batch_size=10, dropout_keep_prob=0.6):
     """Function to get the predictions tensor, loss, input placeholder and saver object
         :param ground_truth: Tensor to hold ground truth
         :param input_mode: One of 'rgb','flow','two_stream'"""
@@ -52,11 +52,12 @@ def get_preds_loss(ground_truth, input_mode='rgb',n_frames=79, num_classes=_NUM_
             rgb_logits,_ = rgb_model(input_fr_rgb,is_training=True,
                                                 dropout_keep_prob=dropout_keep_prob)
         for variable in tf.global_variables():
-            if variable.name.split('/')[0] == 'RGB':
+            if variable.name.split('/')[0] == 'RGB' and 'Logits' not in variable.name:
                 rgb_variable_map[variable.name.replace(':0','')] = variable
         rgb_saver = tf.train.Saver(var_list = rgb_variable_map, reshape=True)
         model_predictions = tf.nn.softmax(rgb_logits)
         top_classes = tf.argmax(model_predictions,axis=1)
+        import ipdb; ipdb.set_trace()
         loss = get_loss(model_predictions, ground_truth)
         return model_predictions, loss, top_classes, input_fr_rgb, rgb_saver
     else:
@@ -105,7 +106,7 @@ def get_optimizer(loss, optim_key='adam', learning_rate=1e-4, momentum=0.9):
 
 def train_batch_videos(n_train_samples, n_epochs, video2label, input_mode='rgb',
                         save_every=1000, print_every=10, action_every=50,
-                        num_classes=400, n_frames=79, batch_size=10,
+                        num_classes=9, n_frames=16, batch_size=10,
                         n_val_samples=10000, early_stopping=5, optim_key='adam',
                         tfrecords_filename='../data/train.tfrecords',
                         val_tfrecords='../data/val_2.tfrecords',
@@ -133,9 +134,9 @@ def train_batch_videos(n_train_samples, n_epochs, video2label, input_mode='rgb',
     best_val_accuracy = -1.
     val_accuracy_iter = n_train_samples/batch_size
     with tf.Session().as_default() as sess:
-        tfrecords_filename = '../data/val_2.tfrecords'
+        #tfrecords_filename = './data/val_2.tfrecords'
         filename_queue = tf.train.string_input_producer([tfrecords_filename], num_epochs=None)
-        videos,labels = get_video_label_tfrecords(filename_queue,batch_size,shuffle=True)
+        videos,labels = get_video_label_tfrecords(filename_queue,batch_size,subset='train',shuffle=True)
         init_op = tf.group(tf.global_variables_initializer(),
         tf.local_variables_initializer())
         sess.run(init_op)
@@ -156,20 +157,20 @@ def train_batch_videos(n_train_samples, n_epochs, video2label, input_mode='rgb',
                 if i%action_every==0:
                     print_preds_labels(top_class_batch, gt_actions)
                 if i%save_every==0:
-                    saver.save(sess,'./ckpt_dir/Kinetics_I3D_%s_%s_%s_%s.ckpt'%(learning_rate,optim_key,n_epochs,str(i)))
-                if i%val_accuracy_iter==0 and i!=0:
-                    val_accuracy = validation_accuracy(n_val_samples=n_val_samples,
-                                                video2label=video2label,sess=sess,input_video_ph=input_video_ph,
-                                                batch_size=batch_size,top_classes=top_classes,val_tfrecords=val_tfrecords)
-                    if val_accuracy > best_val_accuracy:
-                        #Early stopping conditions
-                        best_val_accuracy = round(val_accuracy,3)
-                        reset = 0
-                        saver.save(sess,'./ckpt_dir/Kinetics_I3D_Best.ckpt'%(learning_rate,optim_key,n_epochs,str(i),str(best_val_accuracy)))
-                    else:
-                        if reset==early_stopping:
-                            break
-                        reset +=1
+                    saver.save(sess,'./ckpt_dir/Mice_ACBM_I3D_%s_%s_%s_%s.ckpt'%(learning_rate,optim_key,n_epochs,str(i)))
+                #if i%val_accuracy_iter==0 and i!=0:
+                #    val_accuracy = validation_accuracy(n_val_samples=n_val_samples,
+                #                                video2label=video2label,sess=sess,input_video_ph=input_video_ph,
+                #                                batch_size=batch_size,top_classes=top_classes,val_tfrecords=val_tfrecords)
+                #    if val_accuracy > best_val_accuracy:
+                #        #Early stopping conditions
+                #        best_val_accuracy = round(val_accuracy,3)
+                #        reset = 0
+                #        saver.save(sess,'./ckpt_dir/Kinetics_I3D_Best.ckpt'%(learning_rate,optim_key,n_epochs,str(i),str(best_val_accuracy)))
+                #    else:
+                #        if reset==early_stopping:
+                #            break
+                #        reset +=1
     print "Training completed with best accuracy: {}".format(best_val_accuracy)
     return best_val_accuracy
 
@@ -179,6 +180,6 @@ if __name__=="__main__":
     video2label = get_video2label('val')
     n_train_samples = len(video2label)
     best_val_accuracy = train_batch_videos(n_train_samples=n_train_samples,n_epochs=10, video2label=video2label,
-                            tfrecords_filename='../data/val_2.tfrecords',batch_size=5,
-                            val_tfrecords='../data/val_2.tfrecords',
+                            tfrecords_filename='./data/train_mixed_mice.tfrecords',batch_size=10,
+                            val_tfrecords='./data/val_2.tfrecords',
                             learning_rate=1e-4)

@@ -41,13 +41,13 @@ def _bytes_feature(value):
 def write_tfrecords(data_path,video_paths,action_labels,n_vids_per_batch,subset):
     # open the TFRecords file
     writer = tf.python_io.TFRecordWriter(data_path)
-    video_count = 0 
+    video_count = 0
     for i in tqdm(range(len(video_paths)),desc='Writing tf records..'):
-        # print how many images are saved every 1000 images
+        # print how many videos are saved every 1000 videos
         if (i!=0 and (not i % n_vids_per_batch)):
             print 'Train data: {}/{}\nVideo type:{}'.format(i, len(video_paths),type(vid))
         #    sys.stdout.flush()
-        # Load the image
+        # Load the video
         vid,_ = load_video_with_path_cv2(video_paths[i],n_frames=79)
         if type(vid)==int:
             #Video does not exist, load video returned -1
