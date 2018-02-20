@@ -36,7 +36,7 @@ def test_tfrecord_read(tfrecords_filename):
     with tf.Session().as_default() as sess:
         filename_queue = tf.train.string_input_producer([tfrecords_filename], num_epochs=None)
         cont='y'
-        videos,labels = get_video_label_tfrecords(filename_queue,16,subset='train',shuffle=True)
+        videos,labels = get_video_label_tfrecords(filename_queue,30,subset='train',shuffle=True)
         init_op = tf.group(tf.global_variables_initializer(),
         tf.local_variables_initializer())
         sess.run(init_op)
@@ -50,7 +50,7 @@ def test_tfrecord_read(tfrecords_filename):
             cont = raw_input('One more batch?(y/n)')
 
 def main():
-    os.environ["CUDA_VISIBLE_DEVICES"]='0'
+    os.environ["CUDA_VISIBLE_DEVICES"]=sys.argv[2]
     test_tfrecord_read(sys.argv[1])
 
 if __name__=="__main__":
