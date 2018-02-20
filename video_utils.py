@@ -46,6 +46,7 @@ def load_video_with_path_cv2(video_path, n_frames):
     curr_frames = [vid[i] for i in ind_frames]
     curr_frames = np.array(curr_frames)
     norm_frames = (curr_frames/127.5) - 1.
+    norm_frames = norm_frames.astype(np.float32)
     return norm_frames,norm_frames.shape
 
 def invert_preprocessing(norm_frames, labels = [], display=False):
@@ -55,6 +56,8 @@ def invert_preprocessing(norm_frames, labels = [], display=False):
     print curr_frames.shape
     if display:
         for i in range(len(curr_frames)):
+            if i!=0 and labels[i] == labels[i-1]:
+                continue
             curr_vid = curr_frames[i,:,:,:,:]
             im = curr_vid[0,:,:,:]
             print im.shape
@@ -65,7 +68,7 @@ def invert_preprocessing(norm_frames, labels = [], display=False):
                 im = curr_vid[ii,:,:,:]
                 show.set_data(im)
                 plt.pause(1./30)
-            plt.pause(1)
+            #plt.pause(1)
         plt.show()
     return curr_frames
 
@@ -94,6 +97,7 @@ def load_video_with_path_cv2_abs(video_path, starting_frame, n_frames):
             break
     curr_frames = np.array(vid)
     norm_frames = (curr_frames/127.5) - 1.
+    norm_frames = norm_frames.astype(np.float32)
     return norm_frames,norm_frames.shape
 
 

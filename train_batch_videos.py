@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 from video_utils import *
 import i3d
-from video_utils import *
+import pickle
 from tqdm import tqdm
 import os
 import sys
@@ -39,7 +39,13 @@ def get_loss(predictions, ground_truth):
     """Function to get the loss tensor for I3d
         :param predictions: Tensor with a batch of I3D action predictions
         :param ground_truth: Tensor with the ground truth for predictions"""
-    return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=predictions, labels=ground_truth))
+    class_weights = pickle.load(open('class_weights_all_mice_2018.p'))
+    class_weights = tf.constant([float(class_weights[cls]) for cls in CLASSES_MICE])
+    weights = tf.reduce_sum(class_weights*ground_truth,axis=1)
+    unweighted_loss = tf.nn.softmax_cross_entropy_with_logits(logits=predictions, labels=ground_truth)
+    weighted_loss = unweighted_loss*weights
+    print "Unweighted loss shape: {} Weighted loss shape: {}".format(unweighted_loss.shape, weighted_loss.shape)
+    return tf.reduce_mean(weighted_loss)
 
 def get_preds_loss(ground_truth, input_mode='rgb',n_frames=16, num_classes=_NUM_CLASSES, batch_size=10, dropout_keep_prob=0.6):
     """Function to get the predictions tensor, loss, input placeholder and saver object
@@ -154,6 +160,8 @@ def train_batch_videos(n_train_samples, n_epochs, video2label, input_mode='rgb',
          #   saver_.restore(sess, _CHECKPOINT_PATHS['mice'])
             for i in tqdm(range(0,n_iters),desc='Training I3D on Kinetics train set...'):
                 video_frames_rgb, gt_actions = sess.run([videos,labels])
+                if i==0:
+                    print "Obtained frames and actions", video_frames_rgb.shape, gt_actions.shape
                 gt_actions_oh = np.eye(num_classes)[gt_actions]
                 curr_loss,top_class_batch,_ = sess.run([loss, top_classes, step], feed_dict = {input_video_ph: video_frames_rgb, ground_truth:gt_actions_oh})
                 correct_preds += list(top_class_batch==gt_actions).count(True)
@@ -189,6 +197,6 @@ if __name__=="__main__":
     video2label = get_video2label('val')
     n_train_samples = len(video2label)
     best_val_accuracy = train_batch_videos(n_train_samples=n_train_samples,n_epochs=10, video2label=video2label,
-                            tfrecords_filename='./data/train_mixed_mice.tfrecords',batch_size=10,
+                            tfrecords_filename=sys.argv[2],batch_size=32,
                             val_tfrecords='./data/val_2.tfrecords',
                             learning_rate=1e-4)

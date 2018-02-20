@@ -29,11 +29,12 @@ data_root = '/media/data_cifs/mice/mice_data_2018'
 video_root = '{}/videos'.format(data_root)
 label_root = '{}/labels'.format(data_root)
 
-def get_lists(subset):
-    labels = '{}/{}_labels_mixed_mice.pkl'.format(data_root,subset)
-    videos = '{}/{}_videos_mixed_mice.pkl'.format(data_root,subset)
-    subset_labels = pickle.load(open(labels))
-    subset_videos = pickle.load(open(videos))
+def get_lists(subset,ratio):
+    labels = '{}/{}_labels_norest.pkl'.format(data_root,subset)
+    videos = '{}/{}_videos_norest.pkl'.format(data_root,subset)
+    ind_s, ind_e = 0, int(len(videos)*ratio)
+    subset_labels = pickle.load(open(labels))[ind_s:ind_e]
+    subset_videos = pickle.load(open(videos))[ind_s:ind_e]
     return subset_videos, subset_labels
 
 def _int64_feature(value):
@@ -60,6 +61,7 @@ def write_tfrecords(data_path,video_paths,action_labels,
     counts = {behav:0 for behav in L_POSSIBLE_BEHAVIORS}
     writer = tf.python_io.TFRecordWriter(data_path)
     video_count = 0
+    tot_num_chunks = 0
     for i in tqdm(range(len(video_paths)),desc='Writing tf records..'):
         print '#'*80,'\n'
         video_name = video_paths[i].split('/')[-1]
@@ -78,8 +80,12 @@ def write_tfrecords(data_path,video_paths,action_labels,
                 #Video does not exist, load video returned -1
                 print "No video {} exists {}".format(data_root + '/' + video_paths[i],video)
                 continue
+            if video.dtype != np.float32:
+                video = video.astype(np.float32)
             #Incorporate shuffling within chunk
             curr_range = range(0,j_range_max-n_frames_batch)
+            curr_num_chunks = len(curr_range)
+            tot_num_chunks += curr_num_chunks
             shuffle(curr_range)
             for jj in tqdm(range(len(curr_range)),desc='Writing frames for chunk {} of video {}'.format(ii/n_frames_chunk,video_name)):
                 j = curr_range[jj] #Shuffled index j in current chunk
@@ -99,15 +105,18 @@ def write_tfrecords(data_path,video_paths,action_labels,
                     video_count += 1
                 else:
         	    print "Example is None"
+		sys.stdout.flush()
     writer.close()
     sys.stdout.flush()
-    return video_count
+    return tot_num_chunks
 
 def main():
     subset = sys.argv[1]
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[2]
-    videos, labels = get_lists(subset)
-    write_tfrecords('data/%s_shuffled_mixed_mice.tfrecords'%(subset),videos, labels, 1, subset)
+    videos, labels = get_lists(subset,0.75)
+    print "Writing %s videos and labels"%(len(videos))
+    tot_num_chunks = write_tfrecords('data/%s_flush_shuffled_norest_f32_mixed_mice.tfrecords'%(subset),videos, labels, 1, subset)
+    print tot_num_chunks, "i chunks written"
 
 if __name__=="__main__":
     main()
