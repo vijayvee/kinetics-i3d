@@ -30,18 +30,25 @@ def get_preds_tensor(input_mode='rgb',n_frames=79):
         :param input_mode: One of 'rgb','flow','two_stream'"""
     if input_mode == 'rgb':
         rgb_variable_map = {}
-        input_fr_rgb = tf.placeholder(tf.float32,shape=[1, n_frames, _IMAGE_SIZE, _IMAGE_SIZE, 3],
-                                                name="Input_Video_Placeholder")
+        input_fr_rgb = tf.placeholder(tf.float32,
+                                        shape=[1, n_frames,
+                                                _IMAGE_SIZE, _IMAGE_SIZE,
+                                                3],
+                                        name="Input_Video_Placeholder")
         with tf.variable_scope('RGB'):
             #Building I3D for RGB-only input
-            rgb_model = i3d.InceptionI3d(_NUM_CLASSES,spatial_squeeze=True,
-                                                    final_endpoint='Logits')
-            rgb_logits,_ = rgb_model(input_fr_rgb,is_training=False,
-                                                dropout_keep_prob=1.0)
+            rgb_model = i3d.InceptionI3d(_NUM_CLASSES,
+                                            spatial_squeeze=True,
+                                            final_endpoint='Logits')
+            rgb_logits,_ = rgb_model(input_fr_rgb,
+                                      is_training=False,
+                                      dropout_keep_prob=1.0)
+
         for variable in tf.global_variables():
             if variable.name.split('/')[0] == 'RGB':
                 rgb_variable_map[variable.name.replace(':0','')] = variable
-        rgb_saver = tf.train.Saver(var_list = rgb_variable_map, reshape=True)
+        rgb_saver = tf.train.Saver(var_list = rgb_variable_map,
+                                    reshape=True)
         model_predictions = tf.nn.softmax(rgb_logits)
         return model_predictions, input_fr_rgb, rgb_saver
     else:
