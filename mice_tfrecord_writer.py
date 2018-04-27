@@ -53,7 +53,7 @@ def load_label(label_path):
 def write_tfrecords(data_path,video_paths,action_labels,
                     n_vids_per_batch,subset,
                     n_frames_batch = 16,
-                    n_frames_chunk = 4800):
+                    n_frames_chunk = 512):
     """Function to write tfrecords.
         :param data_path: name of tfrecords file to write
         :param video_paths: list containing filenames of videos
@@ -67,18 +67,20 @@ def write_tfrecords(data_path,video_paths,action_labels,
         video_name = video_paths[i].split('/')[-1]
         # print how many videos are saved every 1000 videos
         if (i!=0 and (not i % n_vids_per_batch)):
-            print 'Train data: {}/{}\nVideo type:{}'.format(i, len(video_paths),type(vid))
+            print 'Train data: {}/{}\nVideo type:{}'.format(i, len(video_paths),type(video))
         # Load the video
         label, counts_curr = load_label(action_labels[i])
         for behav,count in counts_curr.iteritems():
             if behav.lower() != 'none':
                 counts[behav] += count
-        for ii in range(0,len(label),n_frames_chunk):
+        for ii in range(0, len(label),n_frames_chunk):
             j_range_max = min(len(label)-ii,n_frames_chunk) #load only as many frames for which labels are available
-            video,(n,h,w,c) = load_video_with_path_cv2_abs(data_root + '/' + video_paths[i],starting_frame=ii,n_frames=j_range_max)
+            video,(n,h,w,c) = load_video_with_path_cv2_abs("%s/%s" %(data_root,video_paths[i]),
+                                                            starting_frame=ii,
+                                                            n_frames=j_range_max)
             if type(video)==int:
                 #Video does not exist, load video returned -1
-                print "No video {} exists {}".format(data_root + '/' + video_paths[i],video)
+                print "No video %s/%s exists %s"%(data_root,video_paths[i],video)
                 continue
             if video.dtype != np.float32:
                 video = video.astype(np.float32)
@@ -87,7 +89,7 @@ def write_tfrecords(data_path,video_paths,action_labels,
             curr_num_chunks = len(curr_range)
             tot_num_chunks += curr_num_chunks
             shuffle(curr_range)
-            for jj in tqdm(range(len(curr_range)),desc='Writing frames for chunk {} of video {}'.format(ii/n_frames_chunk,video_name)):
+            for jj in tqdm(range(len(curr_range)),desc='Writing frames for chunk %s of video %s'%(ii/n_frames_chunk,video_name)):
                 j = curr_range[jj] #Shuffled index j in current chunk
                 vid = video[j:n_frames_batch+j]
                 label_action = label[ii+n_frames_batch+j-1] #Add ii to account for starting frame number
@@ -105,7 +107,7 @@ def write_tfrecords(data_path,video_paths,action_labels,
                     video_count += 1
                 else:
         	    print "Example is None"
-		sys.stdout.flush()
+	            sys.stdout.flush()
     writer.close()
     sys.stdout.flush()
     return tot_num_chunks
@@ -113,9 +115,9 @@ def write_tfrecords(data_path,video_paths,action_labels,
 def main():
     subset = sys.argv[1]
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[2]
-    videos, labels = get_lists(subset,0.75)
+    videos, labels = get_lists(subset,0.3)
     print "Writing %s videos and labels"%(len(videos))
-    tot_num_chunks = write_tfrecords('data/%s_flush_shuffled_norest_f32_mixed_mice.tfrecords'%(subset),videos, labels, 1, subset)
+    tot_num_chunks = write_tfrecords('data/%s_0_3_flush_shuffled_norest_f32_mixed_mice.tfrecords'%(subset),videos, labels, 1, subset)
     print tot_num_chunks, "i chunks written"
 
 if __name__=="__main__":

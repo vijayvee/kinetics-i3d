@@ -5,6 +5,7 @@ import numpy as np
 import sys
 import os
 from video_utils import *
+from tqdm import tqdm
 
 CLASSES_MICE = ["drink", "eat", "groom", "hang", "sniff", "rear", "rest", "walk", "eathand"]
 
@@ -42,12 +43,12 @@ def test_tfrecord_read(tfrecords_filename):
         sess.run(init_op)
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord,sess=sess)
-        while(cont.lower()=='y'):
+        for i in tqdm(range(1,100)):
             videos_batch,labels_batch = sess.run([videos,labels])
             print_labels(labels_batch)
             print videos_batch.shape,labels_batch
-            invert_preprocessing(videos_batch,labels_batch,display=True)
-            cont = raw_input('One more batch?(y/n)')
+            #invert_preprocessing(videos_batch,labels_batch,display=True)
+            #cont = raw_input('One more batch?(y/n)')
 
 def main():
     os.environ["CUDA_VISIBLE_DEVICES"]=sys.argv[2]
