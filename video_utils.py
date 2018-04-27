@@ -23,7 +23,8 @@ CLASSES_MICE = ["drink", "eat", "groom", "hang", "sniff", "rear", "rest", "walk"
 video2label = {}
 
 def load_video_with_path_cv2(video_path, n_frames):
-    """ Fuction to read a video, select a certain select number of frames, normalize and return the array of videos
+    """ Fuction to read a video, select a certain select number of
+        frames, normalize and return the array of videos
     :param video_path: Path to the video that has to be loaded
     :param n_frames: Number of frames used to represent a video"""
     cap = cv2.VideoCapture(video_path)
@@ -73,7 +74,8 @@ def invert_preprocessing(norm_frames, labels = [], display=False):
     return curr_frames
 
 def load_video_with_path_cv2_abs(video_path, starting_frame, n_frames):
-    """ Fuction to read a video, convert all read frames into an array, normalize and return the array of videos
+    """ Fuction to read a video, convert all read frames
+        into an array, normalize and return the array of videos
     :param video_path: Path to the video that has to be loaded
     :param n_frames: Number of frames used to represent a video"""
     cap = cv2.VideoCapture(video_path)
@@ -110,7 +112,8 @@ def print_preds_labels(preds,labels):
     print list(preds==labels).count(True), "correct predictions"
 
 def load_video_with_path(video_path, n_frames):
-    """ Fuction to read a video, select a certain select number of frames, normalize and return the array of videos
+    """ Fuction to read a video, select a certain select number of
+        frames, normalize and return the array of videos
     :param video_path: Path to the video that has to be loaded
     :param n_frames: Number of frames used to represent a video"""
     #imageio gives problems, seems unstable to read videos
@@ -125,7 +128,8 @@ def load_video_with_path(video_path, n_frames):
     return norm_frames,norm_frames.shape
 
 def read_video(video_id,label,n_frames,subset):
-    """Function to read a single video given by video_fn and return n_frames equally spaced frames from the video
+    """Function to read a single video given by video_fn and return
+        n_frames equally spaced frames from the video
         video_fn: Filename of the video to read
         n_frames: Number of frames to read in the video"""
 
@@ -180,7 +184,10 @@ def download_clip(video_identifier, output_dir,
     """
     # Construct command to trim the videos (ffmpeg required).
     for i in range(0,3600):
-        output_filename = output_dir + '/' + video_identifier + '_' + str(i) + '_' + str(i+1) + '.mp4'
+        output_filename = '%s/%s_%s_%s.mp4'%(output_dir,
+                                           video_identifier,
+                                           str(i),
+                                           str(i+1))
         command = ['ffmpeg',
                    '-i', '"%s"' % tmp_filename,
                    '-ss', str(i),
@@ -201,7 +208,9 @@ def download_clip(video_identifier, output_dir,
         os.remove(tmp_filename)
     return status, 'Downloaded'
 
-def get_video_batch(video2label,batch_size=BATCH_SIZE,validation=False,val_ind=0,n_frames=N_FRAMES,class_index=True):
+def get_video_batch(video2label,batch_size=BATCH_SIZE,
+                      validation=False,val_ind=0,n_frames=N_FRAMES,
+                      class_index=True):
     """Function to return a random batch of videos for train mode and a specific set of videos for val mode.
         :param batch_size: Specifies the size of the batch of videos to be returned
         :param validation: Flag to specify training mode (True for val phase)
@@ -212,8 +221,14 @@ def get_video_batch(video2label,batch_size=BATCH_SIZE,validation=False,val_ind=0
         curr_videos = video2label.keys()[val_ind:val_ind+batch_size]
         curr_labels = [video2label[v] for v in curr_videos]
         #Implement videos that are missing.
-        curr_video_paths = [glob.glob("%s/%s/%s*mp4"%(VIDEOS_ROOT,label,video_id))[0] for video_id,label in zip(curr_videos,curr_labels)]
-        video_rgb_frames = [load_video_with_path_cv2(curr_vid,n_frames)[0] for curr_vid in curr_video_paths]
+        curr_video_paths = [glob.glob("%s/%s/%s*mp4"%(VIDEOS_ROOT,
+                                                        label,
+                                                        video_id))[0]
+                                                        for video_id,label in zip(
+                                                                            curr_videos,curr_labels
+                                                                                )]
+        video_rgb_frames = [load_video_with_path_cv2(curr_vid,n_frames)[0]
+                              for curr_vid in curr_video_paths]
         #video_rgb_frames = [read_video(video_id,label,n_frames,'val')[0] for video_id, label in zip(curr_videos,curr_labels)]
         if class_index:
             curr_labels = [CLASSES_KIN.index(action) for action in curr_labels]
@@ -223,7 +238,11 @@ def get_video_batch(video2label,batch_size=BATCH_SIZE,validation=False,val_ind=0
         curr_inds = sample(0,len(video2label)-1,batch_size)
         curr_videos = video2label.keys()[curr_inds]
         curr_labels = [video2label[v] for v in curr_videos]
-        curr_video_paths = [glob.glob("%s/%s/%s*mp4"%(VIDEOS_ROOT,label,video_id))[0] for video_id,label in zip(curr_videos,curr_labels)]
+        curr_video_paths = [glob.glob("%s/%s/%s*mp4"%(VIDEOS_ROOT,
+                                                        label,
+                                                        video_id))[0]
+                                                        for video_id,label in zip(
+                                                                curr_videos,curr_labels)]
         video_rgb_frames = [load_video_with_path_cv2(curr_vid,n_frames)[0] for curr_vid in curr_video_paths]
         if class_index:
             curr_labels = [CLASSES_KIN.index(action) for action in curr_labels]

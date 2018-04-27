@@ -13,7 +13,8 @@ def print_labels(labels):
     for i,ground_truth in enumerate(labels):
         print i,"Label: ",CLASSES_MICE[ground_truth]
 
-def get_video_label_tfrecords(filename_queue,batch_size,subset,shuffle=False):
+def get_video_label_tfrecords(filename_queue,batch_size,
+                                subset,shuffle=False):
     feature = {'{}/video'.format(subset): tf.FixedLenFeature([], tf.string),
               '{}/label'.format(subset): tf.FixedLenFeature([], tf.int64)}
     # Define a reader and read the next record
@@ -28,16 +29,26 @@ def get_video_label_tfrecords(filename_queue,batch_size,subset,shuffle=False):
     video = tf.reshape(video_dec, [16, 224, 224, 3])
     # Creates batches by randomly shuffling tensors
     if shuffle:
-        videos, labels = tf.train.shuffle_batch([video, label], seed=1234, batch_size=batch_size, capacity=30, num_threads=100, min_after_dequeue=10)
+        videos, labels = tf.train.shuffle_batch([video, label], seed=1234,
+                                                  batch_size=batch_size,
+                                                  capacity=30,
+                                                  num_threads=100,
+                                                  min_after_dequeue=10)
         return videos,labels
-    videos, labels = tf.train.batch([video, label], batch_size=batch_size, capacity=30, num_threads=100)
+    videos, labels = tf.train.batch([video, label],
+                                      batch_size=batch_size,
+                                      capacity=30,
+                                      num_threads=100)
     return videos, labels
 
 def test_tfrecord_read(tfrecords_filename):
     with tf.Session().as_default() as sess:
-        filename_queue = tf.train.string_input_producer([tfrecords_filename], num_epochs=None)
+        filename_queue = tf.train.string_input_producer([tfrecords_filename],
+                                                          num_epochs=None)
         cont='y'
-        videos,labels = get_video_label_tfrecords(filename_queue,30,subset='train',shuffle=True)
+        videos,labels = get_video_label_tfrecords(filename_queue,
+                                                    30,subset='train',
+                                                    shuffle=True)
         init_op = tf.group(tf.global_variables_initializer(),
         tf.local_variables_initializer())
         sess.run(init_op)

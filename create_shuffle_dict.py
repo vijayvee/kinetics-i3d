@@ -6,6 +6,10 @@ import h5py
 import pickle
 from tqdm import tqdm
 
+'''Create a mapping from video filename
+    to behavior to frames labeled as
+    the corresponding behavior'''
+
 L_POSSIBLE_BEHAVIORS = ["drink",
                         "eat",
                         "groom",

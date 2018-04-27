@@ -36,7 +36,9 @@ _LABEL_MAP_PATH = 'data/label_map.txt'
 CLASSES_KIN = [x.strip() for x in open(_LABEL_MAP_PATH)]
 CLASSES_MICE = ["drink", "eat", "groom", "hang", "sniff", "rear", "rest", "walk", "eathand"]
 
-def validation_accuracy(n_val_samples,video2label,sess,input_video_ph,batch_size,top_classes,val_tfrecords):
+def validation_accuracy(n_val_samples,video2label,
+                          sess,input_video_ph,batch_size,
+                          top_classes,val_tfrecords):
     """Function to compute accuracy on a validation set
         :param n_val_samples: Number of samples to validate on
         :param video2label: Dictionary mapping video ids to labels
@@ -49,14 +51,17 @@ def validation_accuracy(n_val_samples,video2label,sess,input_video_ph,batch_size
 
     correct_preds = 0
     tfrecords_filename = val_tfrecords
-    filename_queue = tf.train.string_input_producer([tfrecords_filename], num_epochs=None)
+    filename_queue = tf.train.string_input_producer([tfrecords_filename],
+                                                      num_epochs=None)
     videos,labels = get_video_label_tfrecords(filename_queue,batch_size)
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(coord=coord,sess=sess)
     n_iters = n_val_samples/batch_size
     for i in tqdm(range(0,n_iters),desc='Computing validation set accuracy...'):
         video_frames_rgb, gt_actions = sess.run([videos,labels])
-        top_class_batch = sess.run([top_classes], feed_dict = {input_video_ph: video_frames_rgb})
+        top_class_batch = sess.run([top_classes],
+                                    feed_dict = {input_video_ph:
+                                                video_frames_rgb})
         correct_preds += list(top_class_batch[0]==gt_actions).count(True)
     classification_accuracy = round(float(correct_preds)*100/n_val_samples,3)
     print "Validation complete! Accuracy: {}".format(classification_accuracy)
@@ -96,10 +101,12 @@ def train_batch_videos(n_train_samples, n_epochs, video2label,
     val_accuracy_iter = n_train_samples/batch_size
     with tf.Session().as_default() as sess:
         #tfrecords_filename = './data/val_2.tfrecords'
-        filename_queue = tf.train.string_input_producer([tfrecords_filename], num_epochs=None)
-        videos,labels = get_video_label_tfrecords(filename_queue,batch_size,subset='train',shuffle=True)
+        filename_queue = tf.train.string_input_producer([tfrecords_filename],
+                                                          num_epochs=None)
+        videos,labels = get_video_label_tfrecords(filename_queue,batch_size,
+                                                    subset='train',shuffle=True)
         init_op = tf.group(tf.global_variables_initializer(),
-        tf.local_variables_initializer())
+                            tf.local_variables_initializer())
         sess.run(init_op)
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord,sess=sess)
@@ -109,9 +116,17 @@ def train_batch_videos(n_train_samples, n_epochs, video2label,
             for i in tqdm(range(0,n_iters),desc='Training I3D on Kinetics train set...'):
                 video_frames_rgb, gt_actions = sess.run([videos,labels])
                 if i==0:
-                    print "Obtained frames and actions", video_frames_rgb.shape, gt_actions.shape
+                    print "Obtained frames and actions", \
+                            video_frames_rgb.shape, gt_actions.shape
                 gt_actions_oh = np.eye(num_classes)[gt_actions]
-                curr_loss,top_class_batch,_ = sess.run([loss, top_classes, step], feed_dict = {input_video_ph: video_frames_rgb, ground_truth:gt_actions_oh})
+                curr_loss,top_class_batch,_ = sess.run([loss,
+                                                        top_classes,
+                                                        step],
+                                                        feed_dict = {input_video_ph:
+                                                                      video_frames_rgb,
+                                                                     ground_truth:
+                                                                      gt_actions_oh})
+
                 correct_preds += list(top_class_batch==gt_actions).count(True)
                 if i%print_every==0:
                     print 'Iteration-{} Current training loss: {} Current training accuracy: {}'.format((i+1),
@@ -131,7 +146,8 @@ if __name__=="__main__":
     print "Working on GPU %s"%(os.environ["CUDA_VISIBLE_DEVICES"])
     video2label = get_video2label('val')
     n_train_samples = len(video2label)
-    best_val_accuracy = train_batch_videos(n_train_samples=n_train_samples,n_epochs=10, video2label=video2label,
-                            tfrecords_filename=sys.argv[2],batch_size=16,
-                            val_tfrecords=None,
-                            learning_rate=1e-4)
+    best_val_accuracy = train_batch_videos(n_train_samples=n_train_samples,
+                                            n_epochs=10, video2label=video2label,
+                                            tfrecords_filename=sys.argv[2],batch_size=16,
+                                            val_tfrecords=None,
+                                            learning_rate=1e-4)
