@@ -14,6 +14,7 @@ import sys
 import os
 from tqdm import tqdm
 import imageio
+from tf_utils import *
 from video_utils import *
 L_POSSIBLE_BEHAVIORS = ["drink",
                         "eat",
@@ -29,27 +30,6 @@ data_root = '/media/data_cifs/mice/mice_data_2018'
 video_root = '{}/videos'.format(data_root)
 label_root = '{}/labels'.format(data_root)
 
-def get_lists(subset,ratio):
-    labels = '{}/{}_labels_norest.pkl'.format(data_root,subset)
-    videos = '{}/{}_videos_norest.pkl'.format(data_root,subset)
-    ind_s, ind_e = 0, int(len(videos)*ratio)
-    subset_labels = pickle.load(open(labels))[ind_s:ind_e]
-    subset_videos = pickle.load(open(videos))[ind_s:ind_e]
-    return subset_videos, subset_labels
-
-def _int64_feature(value):
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
-
-def _bytes_feature(value):
-    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
-
-def load_label(label_path):
-    f = h5py.File(data_root + '/' + label_path)
-    labels = f['labels'].value
-    behav, labels_count = np.unique(labels, return_counts=True)
-    counts = {k:v for k,v in zip(behav,labels_count)}
-    return list(labels), counts
-
 def write_tfrecords(data_path,video_paths,action_labels,
                     n_vids_per_batch,subset,
                     n_frames_batch = 16,
@@ -57,35 +37,36 @@ def write_tfrecords(data_path,video_paths,action_labels,
     """Function to write tfrecords.
         :param data_path: name of tfrecords file to write
         :param video_paths: list containing filenames of videos
-        :param action_labels: list conatining filenames of ground truth label h5 files"""
+        :param action_labels: list conatining filenames of
+                              ground truth label h5 files"""
     counts = {behav:0 for behav in L_POSSIBLE_BEHAVIORS}
     writer = tf.python_io.TFRecordWriter(data_path)
     video_count = 0
     tot_num_chunks = 0
-    for i in tqdm(range(len(video_paths)),desc='Writing tf records..'):
+    for i in tqdm(range(len(video_paths)),
+                    desc='Writing tf records..'):
         print '#'*80,'\n'
         video_name = video_paths[i].split('/')[-1]
-        # print how many videos are saved every 1000 videos
-        if (i!=0 and (not i % n_vids_per_batch)):
-            print 'Train data: {}/{}\nVideo type:{}'.format(i,
-                                                            len(video_paths),
-                                                            type(video)
-                                                            )
         # Load the video
         label, counts_curr = load_label(action_labels[i])
         for behav,count in counts_curr.iteritems():
             if behav.lower() != 'none':
                 counts[behav] += count
-        for ii in range(0, len(label),n_frames_chunk):
-            j_range_max = min(len(label)-ii,n_frames_chunk) #load only as many frames for which labels are available
+
+        ############### Read batches of video ###############
+
+        for ii in tqdm(range(0, len(label),
+                              n_frames_chunk),
+                              desc='Reading batches of videos'):
+            #load only as many frames for which labels are available
+            j_range_max = min(len(label)-ii,n_frames_chunk)
             video,(n,h,w,c) = load_video_with_path_cv2_abs(
-                                                            "%s/%s" %(
-                                                                      data_root,
-                                                                      video_paths[i]
-                                                                      ),
-                                                            starting_frame=ii,
-                                                            n_frames=j_range_max
-                                                            )
+                                                    '%s/%s'%(
+                                                    data_root,
+                                                    video_paths[i],
+                                                    dtype='uint8'),
+                                                    starting_frame=ii,
+                                                    n_frames=j_range_max)
             if type(video)==int:
                 #Video does not exist, load video returned -1
                 print "No video %s/%s exists %s"%(
@@ -101,16 +82,18 @@ def write_tfrecords(data_path,video_paths,action_labels,
             curr_num_chunks = len(curr_range)
             tot_num_chunks += curr_num_chunks
             shuffle(curr_range)
-            for jj in tqdm(range(len(curr_range)),desc='Writing frames for chunk %s of video %s'%(
-                                                                            ii/n_frames_chunk,
-                                                                            video_name
-                                                                            )):
+            for jj in tqdm(range(len(curr_range)),
+                            desc='Writing frames for chunk %s of video %s'%(
+                                                                ii/n_frames_chunk,
+                                                                video_name
+                                                                )):
                 #Shuffled index j in current chunk
                 j = curr_range[jj]
                 vid = video[j:n_frames_batch+j]
                 #Add ii to account for starting frame number
                 label_action = label[ii+n_frames_batch+j-1]
-                #Do not train with 'none' labels that are present in the training h5 files
+                #Do not train with 'none' labels that are
+                #present in the training h5 files
                 if label_action.lower() == 'none':
                     continue
                 label_int = L_POSSIBLE_BEHAVIORS.index(label_action)
@@ -119,14 +102,13 @@ def write_tfrecords(data_path,video_paths,action_labels,
                 feature['%s/video'%(subset)] = _bytes_feature(
                                                               tf.compat.as_bytes(
                                                               vid.tostring()
-                                                                )
+                                                              )
                                                               )
                 # Create an example protocol buffer
                 example = tf.train.Example(
-                                           features=tf.train.Features(
-                                                        feature=feature
-                                                        )
-                                           )
+                                        features=tf.train.Features(
+                                        feature=feature
+                                        ))
                 # Serialize to string and write on the file
                 if example is not None:
                     writer.write(example.SerializeToString())

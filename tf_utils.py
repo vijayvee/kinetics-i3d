@@ -34,6 +34,12 @@ _LABEL_MAP_PATH = 'data/label_map.txt'
 CLASSES_KIN = [x.strip() for x in open(_LABEL_MAP_PATH)]
 CLASSES_MICE = ["drink", "eat", "groom", "hang", "sniff", "rear", "rest", "walk", "eathand"]
 
+def _int64_feature(value):
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+def _bytes_feature(value):
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
 def get_filter_conv3d(name, shape, trainable):
     """Function to create a 3d conv kernel"""
     conv_w = tf.get_variable(name,

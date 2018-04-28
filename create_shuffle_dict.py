@@ -22,6 +22,7 @@ L_POSSIBLE_BEHAVIORS = ["drink",
 
 H5_ROOT = sys.argv[1]
 VIDEO_ROOT = sys.argv[2]
+BEHAV2VIDEO = sys.argv[3]
 
 def load_label(label_path):
     f = h5py.File(label_path)
@@ -29,6 +30,10 @@ def load_label(label_path):
     behav, labels_count = np.unique(labels, return_counts=True)
     counts = {k:v for k,v in zip(behav,labels_count)}
     return list(labels), counts
+
+def init_behav2video():
+    behav2video = {b:{} for b in L_POSSIBLE_BEHAVIORS}
+    return behav2video
 
 def init_video2behav():
     video_files = glob.glob('%s/*'%(VIDEO_ROOT))
@@ -44,7 +49,7 @@ def init_video2behav():
 def populate_dict(h5_files, video_files, video2behav):
     for video_file, h5_file in tqdm(zip(video_files, h5_files),
                                       total=len(video_files),
-                                      desc='Populating behav2video...'):
+                                      desc='Populating video2behav...'):
         video_fn = video_file.split('/')[-1]
         labels, counts = load_label(h5_file)
         for ind, label in enumerate(labels): #ind for frame number of activity
@@ -52,12 +57,35 @@ def populate_dict(h5_files, video_files, video2behav):
                 video2behav[video_fn][label] += [ind]
     return video2behav
 
+def populate_dict_b2v(h5_files, video_files, behav2video):
+    for video_file, h5_file in tqdm(zip(video_files, h5_files),
+                                      total=len(video_files),
+                                      desc='Populating behav2video...'):
+        video_fn = video_file.split('/')[-1]
+        labels, counts = load_label(h5_file)
+        for ind, label in enumerate(labels): #ind for frame number of activity
+            if label.lower() != 'none':
+                if behav2video[label].has_key(video_fn):
+                    behav2video[label][video_fn] += [ind]
+                else:
+                    behav2video[label][video_fn] = [ind]
+    return behav2video
+
 def main():
     all_h5 = glob.glob('%s/*.h5'%(H5_ROOT))
     all_videos = glob.glob('%s/*.mp4'%(VIDEO_ROOT))
-    video2behav = init_video2behav()
-    video2behav = populate_dict(all_h5, all_videos, video2behav)
-    pickle.dump(video2behav, open('Video2Behavior.p','w'))
+    if BEHAV2VIDEO == 'n': #y/n, y for behav2video
+        video2behav = init_video2behav()
+        video2behav = populate_dict(all_h5,
+                                      all_videos,
+                                      video2behav)
+        pickle.dump(video2behav, open('Video2Behavior.p','w'))
+    else:
+        behav2video = init_behav2video()
+        behav2video = populate_dict_b2v(all_h5,
+                                          all_videos,
+                                          behav2video)
+        pickle.dump(behav2video, open('Behavior2Video.p','w'))
 
 if __name__=='__main__':
     main()
