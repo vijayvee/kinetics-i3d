@@ -139,10 +139,9 @@ def get_video_chunk_cv2(video_path, starting_frame,
     assert len(vid) == n_frames
     curr_frames = np.array(vid)
     if normalize:
-        norm_frames = (curr_frames/127.5) - 1.
-    norm_frames = norm_frames.astype(np.float32)
-    return norm_frames,norm_frames.shape
-
+        curr_frames = (curr_frames/127.5) - 1.
+    curr_frames = curr_frames.astype(np.float32)
+    return curr_frames,curr_frames.shape
 
 def print_preds_labels(preds,labels):
     """Function to print activity predictions and ground truth next to each other in words.

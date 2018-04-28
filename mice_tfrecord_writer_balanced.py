@@ -34,7 +34,7 @@ def sample_behavior_batch(batch_size=16):
        to prevent any kind of class imbalance
        :param batch_size: Number of chunks per
                           batch for action recognition'''
-    behaviors = sample(L_POSSIBLE_BEHAVIORS, batch_size)
+    behaviors = choice(L_POSSIBLE_BEHAVIORS, batch_size)
     return behaviors
 
 def get_video_chunk_inds(behaviors,
@@ -56,15 +56,16 @@ def get_video_chunk_inds(behaviors,
 
     batch_video_inds = {}
     for behav in behaviors:
-        video_fn = choice(behav2video[behav],
-                            n_unq_vids_per_batch)
+        videos_with_behav = behav2video[behav].keys()
+        video_fn = choice(videos_with_behav,
+                           n_unq_vids_per_batch)[0]
         #Make sure all chunks in a batch come
         #from a different video
         while batch_video_inds.has_key(video_fn):
-            video_fn = choice(behav2video[behav],
-                                n_unq_vids_per_batch)
-        curr_ind = choice(behav2video[video_fn],
-                            n_unq_vids_per_batch)
+            video_fn = choice(videos_with_behav,
+                               n_unq_vids_per_batch)[0]
+        curr_ind = choice(behav2video[behav][video_fn],
+                           n_unq_vids_per_batch)
         batch_video_inds[video_fn] = curr_ind
     return batch_video_inds
 
@@ -85,24 +86,25 @@ def get_video_chunks(batch_video_inds,
     for video_fn, frame_ind in batch_video_inds.iteritems():
         video_path = '%s/%s'%(video_root, video_fn)
         starting_frame = frame_ind
-        curr_chunk = get_video_chunk_cv2(video_path,
+        curr_chunk, _ = get_video_chunk_cv2(video_path,
                                          starting_frame,
                                          n_frames,
                                          normalize=False,
                                          dtype=np.uint8)
         video_chunks.append(curr_chunk)
-    video_chunks = np.array(video_chunks).astype(np.uint8)
-    import ipdb; ipdb.set_trace()
+    video_chunks = np.array(video_chunks)
+    video_chunks.astype(np.uint8)
     return video_chunks
 
 def main():
-    behav2video = pickle.load(open('pickles/Behavior2Pickle.p'))
+    behav2video = pickle.load(open('pickles/Behavior2Video.p'))
     behaviors = sample_behavior_batch()
     batch_video_inds = get_video_chunk_inds(behaviors,
                                              behav2video)
     video_chunks = get_video_chunks(batch_video_inds,
                                      behaviors,
                                      n_frames=16)
+    import ipdb; ipdb.set_trace()
 
 if __name__=='__main__':
     main()
