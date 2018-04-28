@@ -22,6 +22,21 @@ CLASSES_KIN = [x.strip() for x in open(_LABEL_MAP_PATH)]
 CLASSES_MICE = ["drink", "eat", "groom", "hang", "sniff", "rear", "rest", "walk", "eathand"]
 video2label = {}
 
+def load_label(label_path):
+    f = h5py.File(data_root + '/' + label_path)
+    labels = f['labels'].value
+    behav, labels_count = np.unique(labels, return_counts=True)
+    counts = {k:v for k,v in zip(behav,labels_count)}
+    return list(labels), counts
+
+def get_lists(subset,ratio):
+    labels = '{}/{}_labels_norest.pkl'.format(data_root,subset)
+    videos = '{}/{}_videos_norest.pkl'.format(data_root,subset)
+    ind_s, ind_e = 0, int(len(videos)*ratio)
+    subset_labels = pickle.load(open(labels))[ind_s:ind_e]
+    subset_videos = pickle.load(open(videos))[ind_s:ind_e]
+    return subset_videos, subset_labels
+
 def load_video_with_path_cv2(video_path, n_frames):
     """ Fuction to read a video, select a certain select number of
         frames, normalize and return the array of videos
@@ -73,32 +88,58 @@ def invert_preprocessing(norm_frames, labels = [], display=False):
         plt.show()
     return curr_frames
 
-def load_video_with_path_cv2_abs(video_path, starting_frame, n_frames):
-    """ Fuction to read a video, convert all read frames
-        into an array, normalize and return the array of videos
-    :param video_path: Path to the video that has to be loaded
-    :param n_frames: Number of frames used to represent a video"""
+def get_video_capture(video_path, starting_frame):
+    '''Function to load a cv2 video capture object
+       :param video_path: Path of video to capture
+       :param starting_frame: Starting frame from
+                              which capture begins'''
     cap = cv2.VideoCapture(video_path)
     if cap.isOpened()==False:
-        return -1,(-1,-1,-1,-1)
+        return -1
     video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    assert video_length > starting_frame
     cap.set(1,starting_frame)
+    return cap
+
+def get_video_chunk_cv2(video_path, starting_frame,
+                          n_frames, normalize=True,
+                          dtype=np.uint8):
+    """Fuction to read a video, convert all read
+        frames into an array, normalize and return
+        the array of videos
+        :param video_path: Path to the video that
+                           has to be loaded
+        :param starting_frame: Frame from which
+                               video capture starts
+        :param n_frames: Number of frames used to
+                         represent a video
+        :param normalize: Boolean flag indicating
+                          preprocessing/normalization
+                          of the video being captured
+        :param dtype: dtype to which the captured
+                      video is cast. Must be a numpy
+                      dtype"""
+
     frameCount, index = 0,0
     vid = []
+    cap = get_video_capture(video_path,
+                             starting_frame)
+    if type(cap) == int:
+        return -1,(-1,-1,-1,-1)
     while(cap.isOpened()):
         ret, frame = cap.read()
         if ret:
             frameCount += 1
-            frame = cv2.resize(frame,(224,224))
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame = frame.astype(np.float32)
+            frame = frame.astype(dtype)
             vid.append(frame)
             if frameCount == n_frames:
                 break
         else:
             break
+    assert len(vid) == n_frames
     curr_frames = np.array(vid)
-    norm_frames = (curr_frames/127.5) - 1.
+    if normalize:
+        norm_frames = (curr_frames/127.5) - 1.
     norm_frames = norm_frames.astype(np.float32)
     return norm_frames,norm_frames.shape
 

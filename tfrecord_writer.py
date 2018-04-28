@@ -12,6 +12,17 @@ import os
 from tqdm import tqdm
 import imageio
 from video_utils import *
+from random import sample
+
+L_POSSIBLE_BEHAVIORS = ["drink",
+                        "eat",
+                        "groom",
+                        "hang",
+                        "sniff",
+                        "rear",
+                        "rest",
+                        "walk",
+                        "eathand"]
 
 def init(subset):
     # shuffle the addresses before saving
