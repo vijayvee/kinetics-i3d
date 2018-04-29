@@ -57,13 +57,15 @@ def populate_dict(h5_files, video_files, video2behav):
                 video2behav[video_fn][label] += [ind]
     return video2behav
 
-def populate_dict_b2v(h5_files, video_files, behav2video):
+def populate_dict_b2v(h5_files, video_files, behav2video, n_frames):
     for video_file, h5_file in tqdm(zip(video_files, h5_files),
                                       total=len(video_files),
                                       desc='Populating behav2video...'):
         video_fn = video_file.split('/')[-1]
         labels, counts = load_label(h5_file)
         for ind, label in enumerate(labels): #ind for frame number of activity
+            if ind-n_frames < 0:
+                continue
             if label.lower() != 'none':
                 if behav2video[label].has_key(video_fn):
                     behav2video[label][video_fn] += [ind]

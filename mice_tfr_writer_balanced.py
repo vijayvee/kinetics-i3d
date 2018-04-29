@@ -1,26 +1,25 @@
-#!/usr/bin/python
-
-##################### DEPRECIATED CODE #####################
-##################### INEFFICIENT BECAUSE ##################
-##################### OF CLASS IMBALANCE ###################
-
-"""Script to write tfrecords for mixed-mice-data
-Separate script since chunks of video are not stored
-in different files and filenames"""
-
-from random import shuffle
 import pickle
-import h5py
 import glob
-import cv2
 import tensorflow as tf
 import numpy as np
 import sys
 import os
 from tqdm import tqdm
-import imageio
 from tf_utils import *
-from video_utils import *
+from fetch_balanced_batch import *
+
+def compute_n_batch(H5_ROOT, batch_size):
+    '''Function to compute number of samples
+       to load for writing tfrecords.
+       :param H5_ROOT: Root directory containing
+                       all h5 files
+       :param batch_size: Size of each minibatch'''
+    all_h5_files = glob.glob('%s/*.h5'%(H5_ROOT))
+    nLabels = 0
+    for h5_f in h5_files:
+        labels, counts = load_label(h5_f)
+        nLabels += len(labels)
+    return nLabels/batch_size
 
 def write_tfrecords(data_path,video_paths,action_labels,
                     n_vids_per_batch,subset,
@@ -111,18 +110,3 @@ def write_tfrecords(data_path,video_paths,action_labels,
     writer.close()
     sys.stdout.flush()
     return tot_num_chunks
-
-def main():
-    subset = sys.argv[1]
-    os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[2]
-    videos, labels = get_lists(subset,0.3)
-    print "Writing %s videos and labels"%(len(videos))
-    tfr_fname = '%s_0_3_flush_shuffled_norest_f32_mixed_mice.tfrecords'%(subset)
-    tot_num_chunks = write_tfrecords('data/%s'%(tfr_fname),
-                                                videos,
-                                                labels, 1,
-                                                subset)
-    print tot_num_chunks, "i chunks written"
-
-if __name__=="__main__":
-    main()

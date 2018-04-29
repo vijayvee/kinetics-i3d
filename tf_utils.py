@@ -1,13 +1,8 @@
 #!/usr/bin/python
 """Bundling all tensorflow utilities in tf_utils.py"""
-import numpy as np
 import tensorflow as tf
 from video_utils import *
 import i3d
-import pickle
-from tqdm import tqdm
-import os
-import sys
 import random
 from tfrecord_reader import get_video_label_tfrecords
 from test_batch_videos import evaluate_model
@@ -33,6 +28,7 @@ _CHECKPOINT_PATHS = {
 _LABEL_MAP_PATH = 'data/label_map.txt'
 CLASSES_KIN = [x.strip() for x in open(_LABEL_MAP_PATH)]
 CLASSES_MICE = ["drink", "eat", "groom", "hang", "sniff", "rear", "rest", "walk", "eathand"]
+
 
 def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
