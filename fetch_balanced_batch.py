@@ -118,11 +118,12 @@ def fetch_balanced_batch(behav2video,
     video_chunks = get_video_chunks(batch_video_inds,
                                      behaviors,
                                      n_frames=n_frames)
-    return video_chunks
+    return video_chunks, behaviors
 
 def main():
     behav2video = pickle.load(open('pickles/Behavior2Video.p'))
-    video_chunks = fetch_balanced_batch(behav2video)
+    video_chunks, behaviors = fetch_balanced_batch(behav2video)
+    import ipdb; ipdb.set_trace()
 
 if __name__=='__main__':
     main()

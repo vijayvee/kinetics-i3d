@@ -88,6 +88,29 @@ def invert_preprocessing(norm_frames, labels = [], display=False):
         plt.show()
     return curr_frames
 
+def play_minibatch(frames, labels = []):
+    '''Function to play as video, a sequence
+       of frames from a minibatch
+       :param frames: Array of a minibatch
+                      of frames to play as
+                      a video
+       :param labels: If not empty, display
+                      each behavior while
+                      playing the video'''
+    for i in range(len(frames)):
+        curr_vid = frames[i,:,:,:,:]
+        im = curr_vid[0,:,:,:]
+        print im.shape
+        show = plt.imshow(im)
+        if len(labels)>0:
+            print CLASSES_MICE[labels[i]]
+        for ii in range(len(curr_vid)):
+            im = curr_vid[ii,:,:,:]
+            show.set_data(im)
+            plt.pause(1./30)
+    plt.show()
+    return curr_frames
+
 def get_video_capture(video_path, starting_frame):
     '''Function to load a cv2 video capture object
        :param video_path: Path of video to capture

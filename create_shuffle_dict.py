@@ -86,7 +86,8 @@ def main():
         behav2video = init_behav2video()
         behav2video = populate_dict_b2v(all_h5,
                                           all_videos,
-                                          behav2video)
+                                          behav2video,
+                                          n_frames=16)
         pickle.dump(behav2video, open('Behavior2Video.p','w'))
 
 if __name__=='__main__':
