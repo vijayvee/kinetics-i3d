@@ -100,16 +100,17 @@ def play_minibatch(frames, labels = []):
     for i in range(len(frames)):
         curr_vid = frames[i,:,:,:,:]
         im = curr_vid[0,:,:,:]
-        print im.shape
+        print im.shape, im.dtype
         show = plt.imshow(im)
         if len(labels)>0:
-            print CLASSES_MICE[labels[i]]
+            print labels[i]
         for ii in range(len(curr_vid)):
             im = curr_vid[ii,:,:,:]
             show.set_data(im)
             plt.pause(1./30)
+        plt.pause(1./10)
     plt.show()
-    return curr_frames
+
 
 def get_video_capture(video_path, starting_frame):
     '''Function to load a cv2 video capture object
@@ -119,13 +120,15 @@ def get_video_capture(video_path, starting_frame):
     cap = cv2.VideoCapture(video_path)
     if cap.isOpened()==False:
         return -1
+    if type(starting_frame) == list:
+        starting_frame = starting_frame[0]
     video_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     assert video_length > starting_frame
     cap.set(1,starting_frame)
     return cap
 
 def get_video_chunk_cv2(video_path, starting_frame,
-                          n_frames, normalize=True,
+                          n_frames, normalize=False,
                           dtype=np.uint8):
     """Fuction to read a video, convert all read
         frames into an array, normalize and return
@@ -163,7 +166,7 @@ def get_video_chunk_cv2(video_path, starting_frame,
     curr_frames = np.array(vid)
     if normalize:
         curr_frames = (curr_frames/127.5) - 1.
-    curr_frames = curr_frames.astype(np.float32)
+    curr_frames = curr_frames.astype(dtype)
     return curr_frames,curr_frames.shape
 
 def print_preds_labels(preds,labels):

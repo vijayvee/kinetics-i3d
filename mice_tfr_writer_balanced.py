@@ -21,23 +21,26 @@ def compute_n_batch(H5_ROOT, batch_size):
         nLabels += len(labels)
     return nLabels/batch_size
 
-def write_tfrecords(data_path,video_paths,action_labels,
-                    n_vids_per_batch,subset,
-                    n_frames_batch = 16,
-                    n_frames_chunk = 512):
+def write_tfrecords(VIDEO_ROOT,H5_ROOT,
+                      batch_size=16,n_frames_batch = 16,
+                      subset='train', n_frames_chunk = 512):
     """Function to write tfrecords.
         :param data_path: name of tfrecords file to write
         :param video_paths: list containing filenames of videos
         :param action_labels: list conatining filenames of
                               ground truth label h5 files"""
+
     counts = {behav:0 for behav in L_POSSIBLE_BEHAVIORS}
     writer = tf.python_io.TFRecordWriter(data_path)
-    video_count = 0
-    tot_num_chunks = 0
-    for i in tqdm(range(len(video_paths)),
+    #Compute number of batches to write on tfrecords
+    #to fully write our dataset
+    n_batches = compute_n_batch(H5_ROOT, batch_size)
+    #Dictionary mapping behavior to videos and
+    #frame sequences in videos labeled as behavior
+    behav2video = pickle.load(open('pickles/Behavior2Video.p'))
+    ########## Start writing tfrecords ##########
+    for i in tqdm(range(n_batches),
                     desc='Writing tf records..'):
-        print '#'*80,'\n'
-        video_name = video_paths[i].split('/')[-1]
         # Load the video
         label, counts_curr = load_label(action_labels[i])
         for behav,count in counts_curr.iteritems():
