@@ -7,6 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import glob
 from time import sleep
+import h5py
 
 """Script for video related utilities"""
 
@@ -23,7 +24,7 @@ CLASSES_MICE = ["drink", "eat", "groom", "hang", "sniff", "rear", "rest", "walk"
 video2label = {}
 
 def load_label(label_path):
-    f = h5py.File(data_root + '/' + label_path)
+    f = h5py.File(label_path)
     labels = f['labels'].value
     behav, labels_count = np.unique(labels, return_counts=True)
     counts = {k:v for k,v in zip(behav,labels_count)}

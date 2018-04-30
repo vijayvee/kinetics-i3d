@@ -69,37 +69,55 @@ def populate_dict_b2v(h5_files, video_files, behav2video, n_frames):
                     behav2video[label][video_fn] = [ind]
     return behav2video
 
+def write_behav2video(all_h5, all_videos,
+                        DATASET_NAME,
+                        subset='train',
+                        n_frames=16):
+    behav2video = init_behav2video()
+    behav2video = populate_dict_b2v(all_h5,
+                                      all_videos,
+                                      behav2video,
+                                      n_frames=16)
+    pickle.dump(behav2video,
+                 open('pickles/Behavior2Video_%s_%s.p'%(
+                                                DATASET_NAME,
+                                                subset),
+                                                'w'))
+
 def main():
     H5_ROOT = sys.argv[1]
     VIDEO_ROOT = sys.argv[2]
     BEHAV2VIDEO = sys.argv[3]
     DATASET_NAME = sys.argv[4]
-    #all_h5 = glob.glob('%s/*.h5'%(H5_ROOT))
-    #all_videos = glob.glob('%s/*.mp4'%(VIDEO_ROOT))
-    #Load only small.pvd_40 videos, they have good labels
-    all_h5 = pickle.load(open(
-                    'pickles/small.pvd_40_gt_filenames.p'))
-    all_videos = pickle.load(
-                         open('pickles/small.pvd_40_video_filenames.p'))
+    TRAIN_SPLIT = float(sys.argv[5])
+    all_h5 = glob.glob('%s/*.h5'%(H5_ROOT))
+    all_videos = glob.glob('%s/*.mp4'%(VIDEO_ROOT))
     all_h5.sort()
     all_videos.sort()
     assert len(all_h5) == len(all_videos)
-    if BEHAV2VIDEO == 'n': #y/n, y for behav2video
-        video2behav = init_video2behav()
-        video2behav = populate_dict(all_h5,
-                                      all_videos,
-                                      video2behav)
-        pickle.dump(video2behav, open('Video2Behavior.p','w'))
-    else:
-        behav2video = init_behav2video()
-        behav2video = populate_dict_b2v(all_h5,
-                                          all_videos,
-                                          behav2video,
-                                          n_frames=16)
-        pickle.dump(behav2video,
-                     open('pickles/Behavior2Video_%s.p'%(
-                                                    DATASET_NAME),
-                                                    'w'))
+    train_lim = int(len(all_h5)*TRAIN_SPLIT)
+
+    #Split videos and labels into train and test splits
+    train_h5, train_videos = all_h5[:train_lim], \
+                               all_videos[:train_lim]
+    test_h5, test_videos = all_h5[train_lim:], \
+                            all_videos[train_lim:]
+
+    ########## Training behav2video ##########
+    write_behav2video(train_h5,
+                        train_videos,
+                        DATASET_NAME,
+                        subset='train',
+                        n_frames=16)
+
+    ########## Testing behav2video ##########
+    write_behav2video(test_h5,
+                        test_videos,
+                        DATASET_NAME,
+                        subset='test',
+                        n_frames=16)
+
+
 
 if __name__=='__main__':
     main()
