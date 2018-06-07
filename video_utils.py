@@ -23,6 +23,32 @@ CLASSES_KIN = [x.strip() for x in open(_LABEL_MAP_PATH)]
 CLASSES_MICE = ["drink", "eat", "groom", "hang", "sniff", "rear", "rest", "walk", "eathand"]
 video2label = {}
 
+# def resize_tensor(imgs, new_h, new_w):
+#     '''Function to resize a tensor of images to new_h, new_w
+#        while maintaining the aspect ratio constant'''
+#     old_h, old_w = imgs.shape[1], imgs.shape[2]
+#     assert old_w > old_h
+#     new_w =
+
+def compute_n_batch(H5_ROOT,
+                       batch_size,
+                       ratio=1.):
+    '''Function to compute number of samples
+       to load for writing tfrecords.
+       :param H5_ROOT: Root directory containing
+                       all h5 files
+       :param batch_size: Size of each minibatch
+       :param ratio: Proportion of dataset to be
+                     written as tfrecords'''
+    all_h5_files = glob.glob('%s/*.h5'%(H5_ROOT))
+    nLabels = 0
+    for h5_f in all_h5_files:
+        labels, counts = load_label(h5_f)
+        nLabels += len(labels)
+    #To write only a proportion of the dataset
+    nLabels = int(nLabels*ratio)
+    return nLabels/batch_size
+
 def load_label(label_path):
     f = h5py.File(label_path)
     labels = f['labels'].value
@@ -108,7 +134,7 @@ def play_minibatch(frames, labels = []):
         for ii in range(len(curr_vid)):
             im = curr_vid[ii,:,:,:]
             show.set_data(im)
-            plt.pause(1./30)
+            plt.pause(1./60)
         plt.pause(1./10)
     plt.show()
 

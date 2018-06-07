@@ -17,7 +17,7 @@ from video_utils import *
 import os
 
 choice = np.random.choice
-
+chunk_shape = [16,480,640,3]
 L_POSSIBLE_BEHAVIORS = ["drink",
                         "eat",
                         "groom",
@@ -85,6 +85,7 @@ def get_video_chunks(batch_video_inds,
                                                      in a minibatch)'''
     video_chunks = []
     behaviors_video = []
+    prev_chunk = np.zeros(chunk_shape)
     for video_fn, ind_tuple in batch_video_inds.iteritems():
         #Extracting correct behavior for a video sequence
         behav, frame_ind = ind_tuple[0], ind_tuple[1]
@@ -99,7 +100,11 @@ def get_video_chunks(batch_video_inds,
                                          n_frames,
                                          normalize=False,
                                          dtype=np.uint8)
+        if type(curr_chunk) == int:
+            #TODO: Implement masking the loss for bad videos
+            curr_chunk = np.zeros(prev_chunk.shape)
         video_chunks.append(curr_chunk)
+        prev_chunk = curr_chunk
     video_chunks = np.array(video_chunks)
     video_chunks = video_chunks.astype(np.uint8)
     return video_chunks, behaviors_video

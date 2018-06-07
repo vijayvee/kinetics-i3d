@@ -1,6 +1,7 @@
 #!/usr/bin/python
 """Bundling all tensorflow utilities in tf_utils.py"""
 import tensorflow as tf
+import pickle
 from video_utils import *
 import i3d
 import random
@@ -27,14 +28,10 @@ _CHECKPOINT_PATHS = {
 
 _LABEL_MAP_PATH = 'data/label_map.txt'
 CLASSES_KIN = [x.strip() for x in open(_LABEL_MAP_PATH)]
-CLASSES_MICE = ["drink", "eat", "groom", "hang", "sniff", "rear", "rest", "walk", "eathand"]
+CLASSES_MICE = ["drink", "eat", "groom", "hang", "sniff",
+                "rear", "rest", "walk", "eathand"]
 
 
-def _int64_feature(value):
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
-
-def _bytes_feature(value):
-    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
 def get_filter_conv3d(name, shape, trainable):
     """Function to create a 3d conv kernel"""
@@ -53,17 +50,26 @@ def conv3d(name, input, shape):
                             padding='SAME')
         return conv
 
-def get_loss(predictions, ground_truth):
+def _int64_feature(value):
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+def _bytes_feature(value):
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+
+def get_loss(predictions, ground_truth, weights=False):
     """Function to get the loss tensor for I3d
         :param predictions: Tensor with a batch of I3D action predictions
         :param ground_truth: Tensor with the ground truth for predictions"""
-    class_weights = pickle.load(open('class_weights_all_mice_2018.p'))
-    class_weights = tf.constant([float(class_weights[cls]) for cls in CLASSES_MICE])
-    weights = tf.reduce_sum(class_weights*ground_truth,axis=1)
-    unweighted_loss = tf.nn.softmax_cross_entropy_with_logits(logits=predictions, labels=ground_truth)
-    weighted_loss = unweighted_loss*weights
-    print "Unweighted loss shape: {} Weighted loss shape: {}".format(unweighted_loss.shape, weighted_loss.shape)
-    return tf.reduce_mean(weighted_loss)
+    loss = tf.nn.softmax_cross_entropy_with_logits(logits=predictions,
+                                                     labels=ground_truth)
+    if weights:
+        class_weights = pickle.load(open('class_weights_all_mice_2018.p'))
+        class_weights = tf.constant([float(class_weights[cls])
+                                       for cls in CLASSES_MICE])
+        weights = tf.reduce_sum(class_weights*ground_truth,axis=1)
+        loss = loss*weights
+    return tf.reduce_mean(loss)
 
 
 def get_preds_loss(ground_truth, input_mode='rgb',
@@ -112,6 +118,12 @@ def get_preds_loss(ground_truth, input_mode='rgb',
     top_classes = tf.argmax(model_predictions,axis=1)
     loss = get_loss(model_predictions, ground_truth)
     return model_predictions, loss, top_classes, input_fr_rgb, rgb_saver
+
+def resize_tensor(videos):
+    new_h, new_w = compute_scale(old_h=videos.shape[2],
+                                   old_w=videos.shape[3])
+
+
 
 def get_optimizer(loss, optim_key='adam', learning_rate=1e-4, momentum=0.9):
     """Function to return an optimizer

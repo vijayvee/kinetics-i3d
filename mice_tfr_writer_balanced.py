@@ -6,49 +6,46 @@ import sys
 import os
 from tqdm import tqdm
 from tf_utils import *
+from tf_utils import _int64_feature, _bytes_feature
 from fetch_balanced_batch import *
 import h5py
+from time import gmtime, strftime
 
 H5_ROOT = '/media/data_cifs/mice/mice_data_2018/labels'
 DATASET_NAME = sys.argv[1]
 SUBSET = sys.argv[2]
 OUTPUT_PATH = sys.argv[3]
-
-#TODO: Add strftime to the written tfrecord filename
-
-def _int64_feature(value):
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
-
-def _bytes_feature(value):
-    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
-
-def compute_n_batch(H5_ROOT, batch_size):
-    '''Function to compute number of samples
-       to load for writing tfrecords.
-       :param H5_ROOT: Root directory containing
-                       all h5 files
-       :param batch_size: Size of each minibatch'''
-    all_h5_files = glob.glob('%s/*.h5'%(H5_ROOT))
-    nLabels = 0
-    for h5_f in all_h5_files:
-        labels, counts = load_label(h5_f)
-        nLabels += len(labels)
-    return nLabels/batch_size
+RATIO = float(sys.argv[4])
+currTime = strftime("%Y_%m_%d_%H_%M_%S", gmtime())
+tfr_path = OUTPUT_PATH.split('/')
+tfr_name = '%s_%s_%s'%(currTime,
+                        str(RATIO),
+                        tfr_path[-1])
+OUTPUT_PATH = '/'.join(tfr_path[:-1] + [tfr_name])
+print('Writing tfrecords:', OUTPUT_PATH)
 
 def write_tfrecords(subset='train',
                       n_batches=None,
-                      batch_size=16):
+                      batch_size=16,
+                      ratio=1.):
     """Function to write tfrecords.
         :param subset: One of 'train' or 'va'
                        indicating the dataset
-                       being written"""
+                       being written
+        :param n_batch: Number of batches of
+                        dataset to be written
+        :param batch_size: Size of mini-batch
+                           to be written
+        :param ratio: Proportion of dataset to
+                      be written"""
 
     counts = {behav:0 for behav in L_POSSIBLE_BEHAVIORS}
     writer = tf.python_io.TFRecordWriter(OUTPUT_PATH)
     #Compute number of batches to write on tfrecords
     #to fully write our dataset
-    n_batches = compute_n_batch(H5_ROOT, batch_size)
-
+    n_batches = compute_n_batch(H5_ROOT,
+                                  batch_size,
+                                  ratio)
     #Dictionary mapping behavior to videos and
     #frame sequences in videos labeled as behavior
     b2v_pickle = 'pickles/Behavior2Video_%s_%s.p'%(
@@ -71,8 +68,11 @@ def write_tfrecords(subset='train',
             ########## Create tfrecord features ##########
             X = video_chunks[i,:,:,:,:]
             y = labels_int[i]
+            #Check if video is valid and not all-zero
+            mask = int(X.sum()>0)
             feature = {'%s/label'%(subset):
                         _int64_feature(y)}
+            feature['%s/mask'%(subset)] = _int64_feature(mask)
             feature['%s/video'%(subset)] = _bytes_feature(
                                                     tf.compat.as_bytes(
                                                     X.tostring())
@@ -93,7 +93,10 @@ def write_tfrecords(subset='train',
     sys.stdout.flush()
 
 def main():
-    write_tfrecords(subset=SUBSET)
+    write_tfrecords(subset=SUBSET,
+                      ratio=RATIO)
 
 if __name__=='__main__':
+    #Usage: python mice_tfr_writer_balanced.py <DATASET_NAME> <SUBSET> <TFRECORD NAME>
+    #Example: python mice_tfr_writer_balanced.py all_mice train data/all_mice_train.tfrecords
     main()
