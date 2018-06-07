@@ -13,6 +13,7 @@ import random
 from tfrecord_reader import get_video_label_tfrecords
 from test_batch_videos import evaluate_model
 from time import gmtime, strftime
+from fetch_balanced_batch import *
 from tf_utils import *
 
 _IMAGE_SIZE = 224
@@ -67,15 +68,13 @@ def validation_accuracy(n_val_samples,video2label,
     return classification_accuracy
 
 
-def train_batch_videos(n_train_batches, n_epochs, video2label,
+def train_batch_videos(n_train_batches, n_epochs,
                         input_mode='rgb', save_every=1000,
                         print_every=10, action_every=50,
                         num_classes=9, n_frames=16,
-                        batch_size=10, n_val_samples=10000,
-                        early_stopping=5, optim_key='adam',
-                        tfrecords_filename='../data/train.tfrecords',
-                        val_tfrecords='../data/val_2.tfrecords',
+                        batch_size=10, early_stopping=5,
                         learning_rate=1e-4):
+    #TODO: Implement validation
     """Function to train videos in batches.
         :param n_train_batches: Number of training batches in one epoch
         :param n_epochs: Number of epochs to train the model
@@ -84,7 +83,8 @@ def train_batch_videos(n_train_batches, n_epochs, video2label,
         :param input_mode: One of 'rgb','flow','two_stream'
         :param save_every: Save checkpoint of weights every save_every iterations
         :param print_every: Print loss log every print_every iterations
-        :param action_every: Print action predictions with their respective ground truth every action_every iterations
+        :param action_every: Print action predictions with their respective
+                             ground truth every action_every iterations
         :param num_classes: Number of action classes
         :param n_frames: Number of frames to represent a video
         :param batch_size: Batch size for training"""
@@ -94,10 +94,9 @@ def train_batch_videos(n_train_batches, n_epochs, video2label,
                                                                         input_mode=input_mode,
                                                                         n_frames=n_frames,
                                                                         batch_size=batch_size)
+    behav2video = get_b2v(subset='train')
     saver_mice = tf.train.Saver()
     step = get_optimizer(loss,optim_key='adam',learning_rate=learning_rate)
-    best_val_accuracy = -1.
-    #val_accuracy_iter = n_train_samples/batch_size
     with tf.Session().as_default() as sess:
         init_op = tf.group(tf.global_variables_initializer(),
                             tf.local_variables_initializer())
@@ -108,7 +107,8 @@ def train_batch_videos(n_train_batches, n_epochs, video2label,
             n_iters = int((n_epochs*n_train_batches))
             saver.restore(sess, _CHECKPOINT_PATHS['rgb'])
             for i in tqdm(range(0,n_iters),desc='Training I3D on Kinetics train set...'):
-                video_frames_rgb, gt_actions = sess.run([videos,labels])
+                # video_frames_rgb, gt_actions = sess.run([videos,labels])
+                video_frames_rgb, gt_actions = fetch_balanced_batch(behav2video)
                 if i==0:
                     print "Obtained frames and actions", \
                             video_frames_rgb.shape, gt_actions.shape
@@ -122,15 +122,19 @@ def train_batch_videos(n_train_batches, n_epochs, video2label,
                                                                       gt_actions_oh})
 
                 correct_preds += list(top_class_batch==gt_actions).count(True)
+                train_acc = round(correct_preds/float((i+1)*batch_size),3)
                 if i%print_every==0:
-                    print 'Iteration-{} Current training loss: {} Current training accuracy: {}'.format((i+1),
+                    print 'Iteration-%s Current training loss: %s Current training accuracy: %s'.%((i+1),
                                                                                                 curr_loss,
-                                                                                                round(correct_preds/float((i+1)*batch_size),3))
+                                                                                                train_acc)
                 if i%action_every==0:
                     print_preds_labels(top_class_batch, gt_actions)
                 if i%save_every==0:
-		    curr_time = strftime("%Y_%m_%d_%H_%M_%S", gmtime())
-                    saver_mice.save(sess,'./ckpt_dir/Mice_ACBM_FineTune_I3D_%s_%s_%s_%s_%s.ckpt'%(learning_rate,optim_key,n_epochs,str(i),curr_time))
+                    curr_time = strftime("%Y_%m_%d_%H_%M_%S", gmtime())
+                    saver_mice.save(sess,
+                            './ckpt_dir/Mice_ACBM_FineTune_I3D_%s_%s_%s_%s_%s.ckpt'%(
+                                        learning_rate,optim_key,
+                                        n_epochs,str(i),curr_time))
     print "Training completed with best accuracy: {}".format(best_val_accuracy)
     return best_val_accuracy
 
