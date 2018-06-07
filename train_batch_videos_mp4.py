@@ -94,7 +94,7 @@ def train_batch_videos(n_train_batches, n_epochs,
                                                                         input_mode=input_mode,
                                                                         n_frames=n_frames,
                                                                         batch_size=batch_size)
-    behav2video = get_b2v(subset='train')
+    behav2video = get_b2v(subset='train',DATASET_NAME='all_mice')
     saver_mice = tf.train.Saver()
     step = get_optimizer(loss,optim_key='adam',learning_rate=learning_rate)
     with tf.Session().as_default() as sess:
@@ -108,6 +108,7 @@ def train_batch_videos(n_train_batches, n_epochs,
             saver.restore(sess, _CHECKPOINT_PATHS['rgb'])
             for i in tqdm(range(0,n_iters),desc='Training I3D on Kinetics train set...'):
                 # video_frames_rgb, gt_actions = sess.run([videos,labels])
+                import ipdb; ipdb.set_trace()
                 video_frames_rgb, gt_actions = fetch_balanced_batch(behav2video)
                 if i==0:
                     print "Obtained frames and actions", \
@@ -124,7 +125,7 @@ def train_batch_videos(n_train_batches, n_epochs,
                 correct_preds += list(top_class_batch==gt_actions).count(True)
                 train_acc = round(correct_preds/float((i+1)*batch_size),3)
                 if i%print_every==0:
-                    print 'Iteration-%s Current training loss: %s Current training accuracy: %s'.%((i+1),
+                    print 'Iteration-%s Current training loss: %s Current training accuracy: %s'%((i+1),
                                                                                                 curr_loss,
                                                                                                 train_acc)
                 if i%action_every==0:
@@ -143,10 +144,10 @@ if __name__=="__main__":
     print "Working on GPU %s"%(os.environ["CUDA_VISIBLE_DEVICES"])
     n_batches = compute_n_batch(H5_ROOT,
                                   16,
-                                  ratio=0.15)
+                                  ratio=0.5)
     best_val_accuracy = train_batch_videos(n_train_batches=n_batches,
-                                            n_epochs=10, video2label=video2label,
-                                            tfrecords_filename=sys.argv[2],
+                                            n_epochs=10,# video2label=video2label,
+                                            #tfrecords_filename=sys.argv[2],
                                             batch_size=16,
-                                            val_tfrecords=None,
+                                            #val_tfrecords=None,
                                             learning_rate=1e-4)

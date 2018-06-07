@@ -29,6 +29,14 @@ video2label = {}
 #     old_h, old_w = imgs.shape[1], imgs.shape[2]
 #     assert old_w > old_h
 #     new_w =
+def get_b2v(subset,DATASET_NAME):
+    import pickle
+    b2v_pickle = 'pickles/Behavior2Video_%s_%s.p'%(
+                            DATASET_NAME,
+                            subset
+                            )   
+    behav2video = pickle.load(open(b2v_pickle))
+    return behav2video
 
 def compute_n_batch(H5_ROOT,
                        batch_size,
